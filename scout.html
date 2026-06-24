@@ -315,7 +315,7 @@ body{
   </div>
   <span class="tl-time" id="tl-max">0:00</span>
   <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Space">▶</button>
-  <input id="speed" value="2" title="Speed">
+  <input id="speed" value="2" title="Playback speed ([ / ] to halve/double)">
   <span class="spd-lbl">×</span>
 </div>
 
@@ -365,9 +365,9 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v6 — Broadcast kill fx, countdown timer, kill-jump nav, clickable timeline
-//  New: broadcast-style kill flash rings, round countdown, J/K kill navigation,
-//       clickable timeline kill/death markers
+//  CS2 Scout v7 — Velocity arrows, speed hotkeys, nade arc indicators
+//  New: velocity direction arrow on player dot, [/] speed hotkeys, smoke throw arc,
+//       broadcast kill fx, countdown timer, J/K kill-jump, clickable timeline markers
 // ══════════════════════════════════════════════════════
 
 const MAP_META = {
@@ -442,6 +442,8 @@ document.addEventListener('keydown',e=>{
   if((e.code==='ArrowLeft' &&e.ctrlKey)||e.code==='KeyJ'){e.preventDefault();jumpKill(-1);return;}
   if(e.code==='ArrowRight'){currentTick=Math.min(currentTick+64,maxRoundTick);_prevTick=currentTick;redraw();}
   if(e.code==='ArrowLeft') {currentTick=Math.max(currentTick-64,0);_prevTick=currentTick;redraw();}
+  if(e.code==='BracketLeft') { speed=Math.max(0.25,speed/2); document.getElementById('speed').value=speed; }
+  if(e.code==='BracketRight'){ speed=Math.min(16,speed*2);   document.getElementById('speed').value=speed; }
   if(e.code==='KeyH') tgl('heat');
   if(e.code==='KeyT') tgl('trails');
   if(e.code==='KeyL') tgl('labels');
@@ -673,7 +675,10 @@ function drawRound(rc){
     const raw=lerpPos(rc.positions,currentTick);
     if(raw){
       const[px,py]=g2p(raw[0],raw[1],rc.map);
-      drawPlayerDot(px,py,tc);
+      const prev=lerpPos(rc.positions,currentTick-10);
+      let vdx=0,vdy=0;
+      if(prev){const[ppx,ppy]=g2p(prev[0],prev[1],rc.map);vdx=px-ppx;vdy=py-ppy;}
+      drawPlayerDot(px,py,tc,vdx,vdy);
     }
   } else {
     const d=rc.deaths.find(dd=>dd.tick<=currentTick);
@@ -732,7 +737,7 @@ function drawLabel(rc){
   ctx.restore();
 }
 
-function drawPlayerDot(px,py,tc){
+function drawPlayerDot(px,py,tc,vdx,vdy){
   ctx.save();
   // Outer glow
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
@@ -747,6 +752,24 @@ function drawPlayerDot(px,py,tc){
   // Center dot
   ctx.fillStyle=tc;ctx.globalAlpha=1;
   ctx.beginPath();ctx.arc(px,py,2.5,0,Math.PI*2);ctx.fill();
+  // Velocity arrow
+  if(vdx!==undefined&&vdy!==undefined){
+    const spd=Math.sqrt(vdx*vdx+vdy*vdy);
+    if(spd>1.2){
+      const nx=vdx/spd,ny=vdy/spd;
+      const aLen=8+Math.min(10,spd*1.5);
+      const tipX=px+nx*(9+aLen),tipY=py+ny*(9+aLen);
+      const ang=Math.atan2(ny,nx);
+      ctx.globalAlpha=0.72;ctx.strokeStyle=tc;ctx.fillStyle=tc;
+      ctx.lineWidth=1.8;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(px+nx*9,py+ny*9);ctx.lineTo(tipX,tipY);ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(tipX,tipY);
+      ctx.lineTo(tipX-5*Math.cos(ang-.5),tipY-5*Math.sin(ang-.5));
+      ctx.lineTo(tipX-5*Math.cos(ang+.5),tipY-5*Math.sin(ang+.5));
+      ctx.closePath();ctx.fill();
+    }
+  }
   ctx.restore();
 }
 
@@ -775,6 +798,16 @@ function getTraj(nade,lx,ly,map){
   });
 }
 
+function drawNadeArc(throwX,throwY,landX,landY,map,color){
+  if(landX==null||landY==null) return;
+  const[tx,ty]=g2p(throwX,throwY,map);
+  const[lx,ly]=g2p(landX,landY,map);
+  const mx=(tx+lx)/2,my=(ty+ly)/2-22;
+  ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(tx,ty);ctx.quadraticCurveTo(mx,my,lx,ly);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+}
+
 function drawSmokes(rc){
   rc.smokes.forEach(s=>{
     const age=currentTick-s.tick;if(age<0||age>576) return;
@@ -790,6 +823,7 @@ function drawSmokes(rc){
       else{ctx.fillStyle='#8ab4c8';ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();}
     } else {
       const sa=age-FLIGHT;if(sa>DUR){ctx.restore();return;}
+      drawNadeArc(s.throw_x,s.throw_y,s.land_x,s.land_y,rc.map,'#8ab4c8');
       const fade=sa<40?sa/40:sa>DUR-60?(DUR-sa)/60:1;
       const expand=18+sa*.044;
       for(let w=0;w<3;w++){
