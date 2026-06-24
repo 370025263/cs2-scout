@@ -321,6 +321,16 @@ body{
     background:rgba(7,9,15,.92);border:1px solid var(--border2);border-radius:6px;
     padding:6px 10px;font-size:11px;white-space:nowrap;backdrop-filter:blur(12px);
     box-shadow:0 4px 16px rgba(0,0,0,.5);"></div>
+  <button id="replay-btn" style="display:none;position:absolute;left:50%;bottom:18%;transform:translateX(-50%);
+    padding:9px 22px;background:rgba(255,60,90,.12);border:1px solid rgba(255,60,90,.45);
+    border-radius:8px;color:#ff4060;font:700 13px 'Inter',sans-serif;cursor:pointer;
+    letter-spacing:.05em;z-index:25;backdrop-filter:blur(8px);
+    transition:background .15s,box-shadow .15s;"
+    onmouseenter="this.style.background='rgba(255,60,90,.22)';this.style.boxShadow='0 0 18px rgba(255,60,90,.3)'"
+    onmouseleave="this.style.background='rgba(255,60,90,.12)';this.style.boxShadow=''"
+    onclick="currentTick=0;_prevTick=-1;flashPool=[];textPool=[];linePool=[];document.getElementById('replay-btn').style.display='none';togglePlay();">
+    ↺ Replay Round
+  </button>
 </div>
 
 <div id="topbar">
@@ -411,7 +421,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v13 — Round-end stat card, player name filter, distance traveled
+//  CS2 Scout v14 — Canvas zoom/pan (scroll+drag+dblclick), mini-map inset, replay button
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -466,6 +476,9 @@ let flashPool=[];
 let textPool=[];
 // Kill engagement beams: [{x1,y1,x2,y2,color,born}]
 let linePool=[];
+// Camera zoom/pan state
+let camZoom=1,camX=0,camY=0;
+let _isPanning=false,_panStartX=0,_panStartY=0,_panCamX0=0,_panCamY0=0;
 
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
@@ -501,17 +514,69 @@ document.addEventListener('keydown',e=>{
     currentTick=Math.round(maxRoundTick*parseInt(e.key)/10);
     _prevTick=currentTick;flashPool=[];textPool=[];linePool=[];redraw();
   }
+  // 0: reset camera zoom
+  if(e.code==='Digit0'&&!e.ctrlKey&&!e.altKey){camZoom=1;camX=0;camY=0;canvas.style.cursor='crosshair';redraw();}
   // ?: toggle shortcuts panel
   if(e.code==='Slash'&&e.shiftKey){e.preventDefault();toggleShortcuts();}
 });
 
 // Canvas hover — find nearest player dot and show tooltip
+// ── Zoom/pan: wheel to zoom, drag to pan ──
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  const sc=CW/rect.width;
+  const rawX=(e.clientX-rect.left)*sc,rawY=(e.clientY-rect.top)*sc;
+  const wx=(rawX-camX)/camZoom,wy=(rawY-camY)/camZoom;
+  const factor=e.deltaY<0?1.18:1/1.18;
+  const nz=Math.min(5,Math.max(1,camZoom*factor));
+  camX=Math.min(0,Math.max(CW*(1-nz),rawX-wx*nz));
+  camY=Math.min(0,Math.max(CH*(1-nz),rawY-wy*nz));
+  camZoom=nz;
+  canvas.style.cursor=camZoom>1.01?'grab':'crosshair';
+  redraw();
+},{passive:false});
+
+canvas.addEventListener('mousedown',e=>{
+  if(e.button!==0||camZoom<=1.01) return;
+  _isPanning=true;
+  _panStartX=e.clientX;_panStartY=e.clientY;
+  _panCamX0=camX;_panCamY0=camY;
+  canvas.style.cursor='grabbing';
+});
+canvas.addEventListener('mouseup',()=>{
+  _isPanning=false;
+  canvas.style.cursor=camZoom>1.01?'grab':'crosshair';
+});
+canvas.addEventListener('dblclick',e=>{
+  if(camZoom>=4.5){camZoom=1;camX=0;camY=0;canvas.style.cursor='crosshair';redraw();return;}
+  const rect=canvas.getBoundingClientRect();
+  const sc=CW/rect.width;
+  const rawX=(e.clientX-rect.left)*sc,rawY=(e.clientY-rect.top)*sc;
+  const wx=(rawX-camX)/camZoom,wy=(rawY-camY)/camZoom;
+  const nz=Math.min(5,camZoom*2);
+  camX=Math.min(0,Math.max(CW*(1-nz),rawX-wx*nz));
+  camY=Math.min(0,Math.max(CH*(1-nz),rawY-wy*nz));
+  camZoom=nz;
+  canvas.style.cursor='grab';
+  redraw();
+});
+
 canvas.addEventListener('mousemove',e=>{
+  if(_isPanning){
+    const rect=canvas.getBoundingClientRect();
+    const sc=CW/rect.width;
+    camX=Math.min(0,Math.max(CW*(1-camZoom),_panCamX0+(e.clientX-_panStartX)*sc));
+    camY=Math.min(0,Math.max(CH*(1-camZoom),_panCamY0+(e.clientY-_panStartY)*sc));
+    redraw();return;
+  }
   if(!selectedPlayers.length) return;
   const tip=document.getElementById('hover-tip');
   const rect=canvas.getBoundingClientRect();
-  const scaleX=CW/rect.width, scaleY=CH/rect.height;
-  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  const sc=CW/rect.width;
+  // Convert mouse → world coordinates (accounting for camera transform)
+  const rawX=(e.clientX-rect.left)*sc,rawY=(e.clientY-rect.top)*sc;
+  const mx=(rawX-camX)/camZoom,my=(rawY-camY)/camZoom;
   const active=getAllRounds();
   let best=null,bestD=999;
   active.forEach(rc=>{
@@ -527,8 +592,9 @@ canvas.addEventListener('mousemove',e=>{
     tip.innerHTML=`<span style="color:${best.rc.color};font-weight:700">${best.rc.playerName}</span>
       <span style="color:var(--text-dim);font-size:10px;margin-left:6px">${best.rc.team}</span>
       <span style="color:var(--text-dim);margin-left:8px;font-family:JetBrains Mono,monospace">K:${K} D:${D}</span>`;
-    // Position in CSS px relative to map-zone
-    const cssX=(best.px/CW)*rect.width, cssY=(best.py/CH)*rect.height;
+    // Convert world pos → screen CSS px (accounting for camera)
+    const screenX=best.px*camZoom+camX,screenY=best.py*camZoom+camY;
+    const cssX=screenX/CW*rect.width,cssY=screenY/CH*rect.height;
     tip.style.left=(rect.left-mapZone.getBoundingClientRect().left+cssX+14)+'px';
     tip.style.top =(rect.top -mapZone.getBoundingClientRect().top +cssY-24)+'px';
     tip.style.display='block';
@@ -536,7 +602,11 @@ canvas.addEventListener('mousemove',e=>{
     tip.style.display='none';
   }
 });
-canvas.addEventListener('mouseleave',()=>document.getElementById('hover-tip').style.display='none');
+canvas.addEventListener('mouseleave',()=>{
+  _isPanning=false;
+  canvas.style.cursor=camZoom>1.01?'grab':'crosshair';
+  document.getElementById('hover-tip').style.display='none';
+});
 
 function saveScreenshot(){
   if(!selectedPlayers.length) return;
@@ -577,6 +647,10 @@ function getAllRounds(){
 // ══════════════════════════════════════════════════════
 function redraw(){
   canvas.width=CW;canvas.height=CH;
+
+  // ── Apply camera transform (zoom/pan) ──
+  ctx.save();
+  ctx.setTransform(camZoom,0,0,camZoom,camX,camY);
 
   // Background / map
   if(RADAR.complete&&RADAR.naturalWidth>0){
@@ -656,7 +730,13 @@ function redraw(){
   // ── Broadcast flash effects ──
   drawBroadcastFX();
 
-  // ── Round end stats card ──
+  // ── Restore screen-space transform ──
+  ctx.restore();
+
+  // ── Mini-map inset (when zoomed) ──
+  drawMiniMap();
+
+  // ── Round end stats card (screen space) ──
   drawEndCard(active);
 
   updateTimeline();
@@ -664,6 +744,9 @@ function redraw(){
   updateRoundMini(active);
   updateAliveHUD(active);
   updateClock();
+  // Replay button: show only when round is finished and not playing
+  const rb=document.getElementById('replay-btn');
+  if(rb) rb.style.display=(active.length&&currentTick>=maxRoundTick&&!playing)?'block':'none';
 }
 
 // Map zone text labels (game-world coords)
@@ -824,9 +907,43 @@ function calcDist(positions){
   return Math.round(d);
 }
 
+function drawMiniMap(){
+  if(camZoom<=1.25) return;
+  const MX=CW-160,MY=10,MW=150,MH=150;
+  ctx.save();
+  // Panel bg
+  ctx.globalAlpha=0.88;
+  ctx.fillStyle='rgba(7,9,15,.9)';
+  ctx.strokeStyle='rgba(40,55,90,.9)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(MX,MY,MW,MH,6);ctx.fill();ctx.stroke();
+  // Map thumbnail
+  if(RADAR.complete&&RADAR.naturalWidth>0){
+    ctx.globalAlpha=0.7;
+    ctx.drawImage(RADAR,MX,MY,MW,MH);
+    ctx.fillStyle='rgba(0,0,0,0.32)';
+    ctx.beginPath();ctx.roundRect(MX,MY,MW,MH,6);ctx.fill();
+  }
+  // Viewport rectangle
+  ctx.globalAlpha=1;
+  const vpX=-camX/camZoom,vpY=-camY/camZoom;
+  const vpW=CW/camZoom,vpH=CH/camZoom;
+  const rx=MX+vpX*MW/CW,ry=MY+vpY*MH/CH;
+  const rw=vpW*MW/CW,rh=vpH*MH/CH;
+  ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(rx,ry,rw,rh);
+  ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=1.5;
+  ctx.setLineDash([]);ctx.strokeRect(rx,ry,rw,rh);
+  // Zoom label
+  ctx.fillStyle='rgba(180,190,220,.8)';ctx.font='700 9px "JetBrains Mono",monospace';
+  ctx.textAlign='right';ctx.textBaseline='bottom';
+  ctx.fillText(`${camZoom.toFixed(1)}×`,MX+MW-4,MY+MH-4);
+  ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
 function drawEndCard(active){
   if(!active.length||currentTick<maxRoundTick) return;
   ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
   // Dim overlay
   ctx.fillStyle='rgba(5,8,14,.65)';ctx.fillRect(0,0,CW,CH);
   const PW=400,RH=54,rows=active.length;
@@ -1625,6 +1742,10 @@ RADAR.onload=()=>{redraw();};
     <div class="sp-row"><span class="sp-key">L</span><span class="sp-desc">Toggle player labels</span></div>
     <div class="sp-row"><span class="sp-key">N</span><span class="sp-desc">Toggle nades</span></div>
     <div class="sp-row"><span class="sp-key">H</span><span class="sp-desc">Toggle heatmap</span></div>
+    <div class="sp-row"><span class="sp-key">Scroll</span><span class="sp-desc">Zoom in / out on map</span></div>
+    <div class="sp-row"><span class="sp-key">Drag</span><span class="sp-desc">Pan when zoomed in</span></div>
+    <div class="sp-row"><span class="sp-key">Dbl-click</span><span class="sp-desc">Zoom in to point (×2)</span></div>
+    <div class="sp-row"><span class="sp-key">0</span><span class="sp-desc">Reset zoom to fit</span></div>
     <div class="sp-row"><span class="sp-key">? (Shift+/)</span><span class="sp-desc">This help panel</span></div>
     <div class="sp-close" onclick="toggleShortcuts()">Click anywhere to close</div>
   </div>
