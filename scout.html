@@ -168,6 +168,18 @@ body{
 }
 #round-mini .rl{font-size:9px;color:var(--text-dim);letter-spacing:.07em;text-transform:uppercase;}
 #round-mini .rn{font-size:17px;font-weight:800;color:var(--bright);font-family:'JetBrains Mono',monospace;line-height:1.2;}
+/* Round clock — bottom right */
+#clock-panel{
+  position:absolute;bottom:10px;right:10px;
+  background:rgba(7,9,15,.9);backdrop-filter:blur(14px);
+  border:1px solid var(--border2);border-radius:var(--r-sm);
+  padding:7px 13px;z-index:10;pointer-events:none;text-align:center;
+  display:none;
+}
+#clock-panel .ck-lbl{font-size:8px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;}
+#clock-panel .ck-val{font-size:20px;font-weight:800;color:var(--bright);font-family:'JetBrains Mono',monospace;line-height:1.15;letter-spacing:.04em;}
+#clock-panel .ck-val.warn{color:var(--gold);}
+#clock-panel .ck-val.crit{color:var(--kill);}
 
 #killfeed{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:3px;z-index:10;pointer-events:none;max-width:230px;}
 .kf-entry{
@@ -265,6 +277,7 @@ body{
   <div id="stats-overlay"></div>
   <div id="killfeed"></div>
   <div id="round-mini"><div class="rl">Round</div><div class="rn" id="mini-round">—</div></div>
+  <div id="clock-panel"><div class="ck-lbl">TIME</div><div class="ck-val" id="clock-val">1:55</div></div>
   <div id="empty-state">
     <div class="es-icon">🎯</div>
     <h3>CS2 Tactical Scout</h3>
@@ -352,9 +365,9 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v5 — Multi-player comparison engine
-//  New: multi-player simultaneous display, bezier smooth
-//       trails, spawn zone indicators, player legend
+//  CS2 Scout v6 — Broadcast kill fx, countdown timer, kill-jump nav, clickable timeline
+//  New: broadcast-style kill flash rings, round countdown, J/K kill navigation,
+//       clickable timeline kill/death markers
 // ══════════════════════════════════════════════════════
 
 const MAP_META = {
@@ -399,8 +412,12 @@ let scoutData=null;
 let selectedPlayers=[]; // [{player, color, rounds}]
 let playing=false,speed=2;
 let show={trails:true,labels:true,nades:true,fires:false,kills:true,deaths:true,heat:false};
-let currentTick=0,maxRoundTick=0;
+let currentTick=0,maxRoundTick=0,_prevTick=-1;
 let _kfEvents=[];
+// Broadcast-style flash effects: [{cx,cy,color,born,type}]
+let flashPool=[];
+// Floating kill text: [{cx,cy,text,color,born}]
+let textPool=[];
 
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
@@ -420,13 +437,25 @@ fitCanvas();
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT') return;
   if(e.code==='Space'){e.preventDefault();togglePlay();}
-  if(e.code==='ArrowRight'){currentTick=Math.min(currentTick+64,maxRoundTick);redraw();}
-  if(e.code==='ArrowLeft') {currentTick=Math.max(currentTick-64,0);redraw();}
+  // Ctrl+Arrow or K/J: jump between kills
+  if((e.code==='ArrowRight'&&e.ctrlKey)||e.code==='KeyK'){e.preventDefault();jumpKill(1);return;}
+  if((e.code==='ArrowLeft' &&e.ctrlKey)||e.code==='KeyJ'){e.preventDefault();jumpKill(-1);return;}
+  if(e.code==='ArrowRight'){currentTick=Math.min(currentTick+64,maxRoundTick);_prevTick=currentTick;redraw();}
+  if(e.code==='ArrowLeft') {currentTick=Math.max(currentTick-64,0);_prevTick=currentTick;redraw();}
   if(e.code==='KeyH') tgl('heat');
   if(e.code==='KeyT') tgl('trails');
   if(e.code==='KeyL') tgl('labels');
   if(e.code==='KeyN') tgl('nades');
 });
+
+function jumpKill(dir){
+  const ticks=getAllRounds().flatMap(rc=>rc.kills.map(k=>k.tick)).sort((a,b)=>a-b);
+  if(!ticks.length) return;
+  let target;
+  if(dir>0) target=ticks.find(t=>t>currentTick+5);
+  else       target=[...ticks].reverse().find(t=>t<currentTick-5);
+  if(target!=null){currentTick=Math.max(0,target-16);_prevTick=currentTick;flashPool=[];textPool=[];redraw();}
+}
 
 // ══════════════════════════════════════════════════════
 //  ALL ROUNDS FROM ALL SELECTED PLAYERS (flat list)
@@ -474,15 +503,43 @@ function redraw(){
 
   if(show.heat) drawHeatmap(active);
 
+  // ── Detect new kills/deaths for broadcast flash ──
+  if(_prevTick < currentTick){
+    active.forEach(rc=>{
+      rc.kills.forEach(k=>{
+        if(k.tick>_prevTick&&k.tick<=currentTick){
+          const[vx,vy]=g2p(k.other_x,k.other_y,rc.map);
+          const[kx,ky]=g2p(rc.positions[0]?.x||k.x,rc.positions[0]?.y||k.y,rc.map);
+          const raw=lerpPos(rc.positions,k.tick);
+          const[kpx,kpy]=raw?g2p(raw[0],raw[1],rc.map):[kx,ky];
+          flashPool.push({cx:vx,cy:vy,color:'#ff3c5a',born:currentTick,type:'kill'});
+          flashPool.push({cx:kpx,cy:kpy,color:rc.color,born:currentTick,type:'shooter'});
+          textPool.push({cx:kpx,cy:kpy,text:'KILL',color:rc.color,born:currentTick});
+        }
+      });
+      rc.deaths.forEach(d=>{
+        if(d.tick>_prevTick&&d.tick<=currentTick){
+          const[dx,dy]=g2p(d.x,d.y,rc.map);
+          flashPool.push({cx:dx,cy:dy,color:'#ffd060',born:currentTick,type:'death'});
+        }
+      });
+    });
+  }
+  _prevTick=currentTick;
+
   // ── Per-round rendering ──
   active.forEach(rc=>drawRound(rc));
 
   // ── Name labels on top ──
   if(show.labels) active.forEach(rc=>drawLabel(rc));
 
+  // ── Broadcast flash effects ──
+  drawBroadcastFX();
+
   updateTimeline();
   updateKillFeed();
   updateRoundMini(active);
+  updateClock();
 }
 
 function drawBombsite(gx,gy,lbl,col){
@@ -494,6 +551,59 @@ function drawBombsite(gx,gy,lbl,col){
   ctx.lineWidth=3.5;ctx.strokeStyle='rgba(0,0,0,.92)';
   ctx.strokeText(lbl,px,py+5);ctx.fillStyle=col;ctx.fillText(lbl,px,py+5);
   ctx.restore();
+}
+
+function drawBroadcastFX(){
+  const KILL_DUR=22, SHOOT_DUR=14, DEATH_DUR=20, TEXT_DUR=30;
+  // Purge expired
+  flashPool=flashPool.filter(f=>{
+    const DUR=f.type==='kill'?KILL_DUR:f.type==='shooter'?SHOOT_DUR:DEATH_DUR;
+    return currentTick-f.born<DUR;
+  });
+  textPool=textPool.filter(t=>currentTick-t.born<TEXT_DUR);
+
+  // Draw flash rings
+  flashPool.forEach(f=>{
+    const DUR=f.type==='kill'?KILL_DUR:f.type==='shooter'?SHOOT_DUR:DEATH_DUR;
+    const age=currentTick-f.born, t=age/DUR;
+    const alpha=Math.max(0,1-t)*( f.type==='shooter'?0.6:0.85 );
+    const r=(f.type==='kill'?14:f.type==='shooter'?12:11)+age*( f.type==='kill'?3.2:2.5 );
+    ctx.save();
+    if(f.type==='kill'){
+      // Outer ring
+      ctx.strokeStyle=f.color; ctx.lineWidth=2.5; ctx.globalAlpha=alpha;
+      ctx.beginPath();ctx.arc(f.cx,f.cy,r,0,Math.PI*2);ctx.stroke();
+      // Inner glow
+      const g=ctx.createRadialGradient(f.cx,f.cy,0,f.cx,f.cy,r*.6);
+      g.addColorStop(0,f.color+'55');g.addColorStop(1,f.color+'00');
+      ctx.fillStyle=g;ctx.globalAlpha=alpha*.7;ctx.beginPath();ctx.arc(f.cx,f.cy,r*.6,0,Math.PI*2);ctx.fill();
+    } else if(f.type==='shooter'){
+      // Pulse ring around shooter
+      ctx.strokeStyle=f.color; ctx.lineWidth=2; ctx.globalAlpha=alpha*.9;
+      ctx.beginPath();ctx.arc(f.cx,f.cy,r,0,Math.PI*2);ctx.stroke();
+    } else {
+      // Death: gold cross-spark
+      ctx.strokeStyle=f.color; ctx.lineWidth=2; ctx.globalAlpha=alpha;
+      const d=r*.5;
+      ctx.beginPath();ctx.moveTo(f.cx-d,f.cy-d);ctx.lineTo(f.cx+d,f.cy+d);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(f.cx+d,f.cy-d);ctx.lineTo(f.cx-d,f.cy+d);ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // Draw floating kill text
+  textPool.forEach(t=>{
+    const age=currentTick-t.born, frac=age/TEXT_DUR;
+    const alpha=Math.max(0,frac<0.3?frac/.3:1-frac);
+    const y=t.cy-18-age*1.4;
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.font='bold 11px "Inter",sans-serif'; ctx.textAlign='center';
+    ctx.strokeStyle='rgba(0,0,0,.85)'; ctx.lineWidth=3;
+    ctx.strokeText(t.text,t.cx,y);
+    ctx.fillStyle=t.color; ctx.fillText(t.text,t.cx,y);
+    ctx.restore();
+  });
 }
 
 function drawHeatmap(active){
@@ -823,13 +933,21 @@ function buildTimelineEvents(){
       rc.kills.forEach(k=>{
         const pct=k.tick/maxRoundTick*100;
         const d=document.createElement('div');
-        d.style.cssText=`position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:3px;height:3px;border-radius:50%;background:${sp.color};opacity:.7;`;
+        d.style.cssText=`position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:${sp.color};opacity:.7;cursor:pointer;z-index:6;pointer-events:auto;transition:transform .1s;`;
+        d.title=`Kill • ${k.weapon||'?'} • ${sp.player.name}`;
+        d.onmouseenter=()=>d.style.transform='translate(-50%,-50%) scale(2)';
+        d.onmouseleave=()=>d.style.transform='translate(-50%,-50%) scale(1)';
+        d.onclick=(e)=>{e.stopPropagation();_prevTick=Math.max(0,k.tick-16);currentTick=_prevTick;flashPool=[];textPool=[];redraw();};
         el.appendChild(d);
       });
       rc.deaths.forEach(d=>{
         const pct=d.tick/maxRoundTick*100;
         const dot=document.createElement('div');
-        dot.style.cssText=`position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:3px;height:3px;border-radius:50%;background:#ffd060;opacity:.65;`;
+        dot.style.cssText=`position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:#ffd060;opacity:.65;cursor:pointer;z-index:6;pointer-events:auto;transition:transform .1s;`;
+        dot.title=`Death • ${d.weapon||'?'} • ${sp.player.name}`;
+        dot.onmouseenter=()=>dot.style.transform='translate(-50%,-50%) scale(2)';
+        dot.onmouseleave=()=>dot.style.transform='translate(-50%,-50%) scale(1)';
+        dot.onclick=(e)=>{e.stopPropagation();_prevTick=Math.max(0,d.tick-16);currentTick=_prevTick;flashPool=[];textPool=[];redraw();};
         el.appendChild(dot);
       });
     });
@@ -917,7 +1035,25 @@ function updateTimeline(){
   document.getElementById('tl-max').textContent=f(maxRoundTick);
 }
 
-document.getElementById('tl-slider').oninput=function(){currentTick=parseInt(this.value);redraw();};
+function updateClock(){
+  const cp=document.getElementById('clock-panel');
+  const cv=document.getElementById('clock-val');
+  if(!selectedPlayers.length){cp.style.display='none';return;}
+  cp.style.display='block';
+  // CS2 round = ~115s from first tick; buy phase ~15s
+  const elapsed=currentTick/16;
+  const remaining=Math.max(0,115-elapsed);
+  const m=Math.floor(remaining/60);
+  const s=Math.floor(remaining%60);
+  cv.textContent=`${m}:${String(s).padStart(2,'0')}`;
+  cv.className='ck-val'+(remaining<10?' crit':remaining<30?' warn':'');
+}
+
+document.getElementById('tl-slider').oninput=function(){
+  _prevTick=parseInt(this.value);currentTick=_prevTick;
+  flashPool=[];textPool=[];
+  redraw();
+};
 
 function togglePlay(){
   if(!selectedPlayers.length) return;
