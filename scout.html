@@ -421,7 +421,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v14 — Canvas zoom/pan (scroll+drag+dblclick), mini-map inset, replay button
+//  CS2 Scout v15 — Trail glow, pulsing player dot, cinematic vignette, broadcast zone labels
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -733,6 +733,9 @@ function redraw(){
   // ── Restore screen-space transform ──
   ctx.restore();
 
+  // ── Cinematic edge vignette (screen space) ──
+  drawVignette();
+
   // ── Mini-map inset (when zoomed) ──
   drawMiniMap();
 
@@ -778,14 +781,18 @@ const MAP_ZONES={
 function drawZoneLabels(map){
   const zones=MAP_ZONES[map];if(!zones) return;
   ctx.save();
-  ctx.font='500 9px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.letterSpacing='0.08em';
+  ctx.font='600 9px "JetBrains Mono",monospace';ctx.textAlign='center';ctx.letterSpacing='0.1em';
   zones.forEach(z=>{
     const[x,y]=g2p(z.gx,z.gy,map);
-    ctx.globalAlpha=0.22;
-    ctx.strokeStyle='rgba(0,0,0,.8)'; ctx.lineWidth=2.5;
-    ctx.strokeText(z.name,x,y);
-    ctx.fillStyle='#c8d4f0'; ctx.globalAlpha=0.2;
-    ctx.fillText(z.name,x,y);
+    const tw=ctx.measureText(z.name).width;
+    // Pill background
+    ctx.globalAlpha=0.38;
+    ctx.fillStyle='rgba(6,10,20,.85)';
+    ctx.strokeStyle='rgba(80,100,160,.3)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(x-tw/2-5,y-9,tw+10,13,3);ctx.fill();ctx.stroke();
+    // Label text
+    ctx.globalAlpha=0.48;ctx.fillStyle='#a8bce0';
+    ctx.fillText(z.name,x,y+1);
   });
   ctx.restore();
 }
@@ -905,6 +912,14 @@ function calcDist(positions){
     d+=Math.sqrt(dx*dx+dy*dy);
   }
   return Math.round(d);
+}
+
+function drawVignette(){
+  const cx=CW/2,cy=CH/2;
+  const g=ctx.createRadialGradient(cx,cy,CW*0.3,cx,cy,CW*0.72);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,0.58)');
+  ctx.save();ctx.fillStyle=g;ctx.fillRect(0,0,CW,CH);ctx.restore();
 }
 
 function drawMiniMap(){
@@ -1028,7 +1043,19 @@ function drawRound(rc){
       ctx.save();
       const pts=vis.map(p=>g2p(p.x,p.y,rc.map));
       const N=pts.length;
-      // Each segment independently: fade alpha, taper width → ribbon effect
+      // ── Glow pass (wide + faint, last 24 segments only for perf) ──
+      if(!isDead&&N>2){
+        const gStart=Math.max(0,N-24);
+        const gPts=pts.slice(gStart);const GN=gPts.length;
+        ctx.lineCap='round';
+        for(let i=1;i<GN;i++){
+          const t=i/GN;
+          ctx.globalAlpha=t*0.055;ctx.strokeStyle=tc;ctx.lineWidth=8+t*10;
+          ctx.beginPath();ctx.moveTo(gPts[i-1][0],gPts[i-1][1]);ctx.lineTo(gPts[i][0],gPts[i][1]);
+          ctx.stroke();
+        }
+      }
+      // ── Sharp ribbon pass ──
       for(let i=1;i<N;i++){
         const t=i/N;
         const alpha=isDead?0.04+t*.11:0.04+t*.88;
@@ -1142,10 +1169,15 @@ function drawLabel(rc){
 
 function drawPlayerDot(px,py,tc,vdx,vdy){
   ctx.save();
-  // Outer glow
+  // Pulsing outer ring (animates during playback based on currentTick)
+  const pulse=Math.sin(currentTick/7)*0.5+0.5;
+  const pr=10+pulse*6;
+  ctx.strokeStyle=tc;ctx.lineWidth=1.2;ctx.globalAlpha=0.25*(1-pulse*0.6);
+  ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.stroke();
+  // Outer glow gradient
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
-  g.addColorStop(0,tc+'4a');g.addColorStop(1,tc+'00');
-  ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
+  g.addColorStop(0,tc+'55');g.addColorStop(1,tc+'00');
+  ctx.globalAlpha=0.9;ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
   // Ring
   ctx.strokeStyle=tc;ctx.lineWidth=2.5;ctx.globalAlpha=.9;
   ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);ctx.stroke();
