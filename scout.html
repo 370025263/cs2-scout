@@ -283,6 +283,10 @@ body{
     <h3>CS2 Tactical Scout</h3>
     <p>Click players from the roster to compare on map</p>
   </div>
+  <div id="hover-tip" style="display:none;position:absolute;pointer-events:none;z-index:20;
+    background:rgba(7,9,15,.92);border:1px solid var(--border2);border-radius:6px;
+    padding:6px 10px;font-size:11px;white-space:nowrap;backdrop-filter:blur(12px);
+    box-shadow:0 4px 16px rgba(0,0,0,.5);"></div>
 </div>
 
 <div id="topbar">
@@ -365,9 +369,9 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v7 — Velocity arrows, speed hotkeys, nade arc indicators
-//  New: velocity direction arrow on player dot, [/] speed hotkeys, smoke throw arc,
-//       broadcast kill fx, countdown timer, J/K kill-jump, clickable timeline markers
+//  CS2 Scout v8 — Kill beam, hover tooltip, HE arc, nade improvements
+//  New: kill engagement beam (shooter→victim dashed line+arrow), canvas hover tooltip,
+//       HE throw arc during flight, velocity arrows, [/] speed hotkeys
 // ══════════════════════════════════════════════════════
 
 const MAP_META = {
@@ -418,6 +422,8 @@ let _kfEvents=[];
 let flashPool=[];
 // Floating kill text: [{cx,cy,text,color,born}]
 let textPool=[];
+// Kill engagement beams: [{x1,y1,x2,y2,color,born}]
+let linePool=[];
 
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
@@ -450,13 +456,46 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyN') tgl('nades');
 });
 
+// Canvas hover — find nearest player dot and show tooltip
+canvas.addEventListener('mousemove',e=>{
+  if(!selectedPlayers.length) return;
+  const tip=document.getElementById('hover-tip');
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=CW/rect.width, scaleY=CH/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  const active=getAllRounds();
+  let best=null,bestD=999;
+  active.forEach(rc=>{
+    if(rc.deaths.some(d=>d.tick<=currentTick)) return;
+    const raw=lerpPos(rc.positions,currentTick);if(!raw) return;
+    const[px,py]=g2p(raw[0],raw[1],rc.map);
+    const d=Math.sqrt((px-mx)**2+(py-my)**2);
+    if(d<bestD){bestD=d;best={rc,px,py};}
+  });
+  if(best&&bestD<28){
+    const K=best.rc.kills.filter(k=>k.tick<=currentTick).length;
+    const D=best.rc.deaths.filter(d=>d.tick<=currentTick).length;
+    tip.innerHTML=`<span style="color:${best.rc.color};font-weight:700">${best.rc.playerName}</span>
+      <span style="color:var(--text-dim);font-size:10px;margin-left:6px">${best.rc.team}</span>
+      <span style="color:var(--text-dim);margin-left:8px;font-family:JetBrains Mono,monospace">K:${K} D:${D}</span>`;
+    // Position in CSS px relative to map-zone
+    const cssX=(best.px/CW)*rect.width, cssY=(best.py/CH)*rect.height;
+    tip.style.left=(rect.left-mapZone.getBoundingClientRect().left+cssX+14)+'px';
+    tip.style.top =(rect.top -mapZone.getBoundingClientRect().top +cssY-24)+'px';
+    tip.style.display='block';
+  } else {
+    tip.style.display='none';
+  }
+});
+canvas.addEventListener('mouseleave',()=>document.getElementById('hover-tip').style.display='none');
+
 function jumpKill(dir){
   const ticks=getAllRounds().flatMap(rc=>rc.kills.map(k=>k.tick)).sort((a,b)=>a-b);
   if(!ticks.length) return;
   let target;
   if(dir>0) target=ticks.find(t=>t>currentTick+5);
   else       target=[...ticks].reverse().find(t=>t<currentTick-5);
-  if(target!=null){currentTick=Math.max(0,target-16);_prevTick=currentTick;flashPool=[];textPool=[];redraw();}
+  if(target!=null){currentTick=Math.max(0,target-16);_prevTick=currentTick;flashPool=[];textPool=[];linePool=[];redraw();}
 }
 
 // ══════════════════════════════════════════════════════
@@ -517,6 +556,7 @@ function redraw(){
           flashPool.push({cx:vx,cy:vy,color:'#ff3c5a',born:currentTick,type:'kill'});
           flashPool.push({cx:kpx,cy:kpy,color:rc.color,born:currentTick,type:'shooter'});
           textPool.push({cx:kpx,cy:kpy,text:'KILL',color:rc.color,born:currentTick});
+          linePool.push({x1:kpx,y1:kpy,x2:vx,y2:vy,color:rc.color,born:currentTick});
         }
       });
       rc.deaths.forEach(d=>{
@@ -556,13 +596,34 @@ function drawBombsite(gx,gy,lbl,col){
 }
 
 function drawBroadcastFX(){
-  const KILL_DUR=22, SHOOT_DUR=14, DEATH_DUR=20, TEXT_DUR=30;
+  const KILL_DUR=22, SHOOT_DUR=14, DEATH_DUR=20, TEXT_DUR=30, LINE_DUR=20;
   // Purge expired
   flashPool=flashPool.filter(f=>{
     const DUR=f.type==='kill'?KILL_DUR:f.type==='shooter'?SHOOT_DUR:DEATH_DUR;
     return currentTick-f.born<DUR;
   });
   textPool=textPool.filter(t=>currentTick-t.born<TEXT_DUR);
+  linePool=linePool.filter(l=>currentTick-l.born<LINE_DUR);
+
+  // Draw kill engagement beams (shooter → victim)
+  linePool.forEach(l=>{
+    const age=currentTick-l.born, frac=age/LINE_DUR;
+    const alpha=Math.max(0,(1-frac)*.72);
+    ctx.save();
+    ctx.globalAlpha=alpha; ctx.strokeStyle=l.color; ctx.lineWidth=1.4;
+    ctx.setLineDash([5,4]); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.stroke();
+    ctx.setLineDash([]);
+    // Arrowhead at victim end
+    const ang=Math.atan2(l.y2-l.y1,l.x2-l.x1);
+    ctx.globalAlpha=alpha*.8; ctx.fillStyle=l.color;
+    ctx.beginPath();
+    ctx.moveTo(l.x2,l.y2);
+    ctx.lineTo(l.x2-7*Math.cos(ang-.45),l.y2-7*Math.sin(ang-.45));
+    ctx.lineTo(l.x2-7*Math.cos(ang+.45),l.y2-7*Math.sin(ang+.45));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  });
 
   // Draw flash rings
   flashPool.forEach(f=>{
@@ -870,6 +931,12 @@ function drawHEs(rc){
       const fr=t*(traj.length-1)-idx;
       const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*fr;
       const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*fr;
+      // Draw dotted trajectory arc during flight (canvas-space)
+      const[ttx,tty]=g2p(h.throw_x,h.throw_y,rc.map);
+      const mx2=(ttx+last.cx)/2,my2=(tty+last.cy)/2-22;
+      ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#ff9940';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+      ctx.beginPath();ctx.moveTo(ttx,tty);ctx.quadraticCurveTo(mx2,my2,last.cx,last.cy);ctx.stroke();
+      ctx.setLineDash([]);ctx.restore();
       if(IMG.he_grenade.complete&&IMG.he_grenade.naturalWidth>0){ctx.globalAlpha=.7;ctx.drawImage(IMG.he_grenade,cx-8,cy-8,16,16);}
       else{ctx.fillStyle='#7dff80';ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();}
     } else {
@@ -1085,7 +1152,7 @@ function updateClock(){
 
 document.getElementById('tl-slider').oninput=function(){
   _prevTick=parseInt(this.value);currentTick=_prevTick;
-  flashPool=[];textPool=[];
+  flashPool=[];textPool=[];linePool=[];
   redraw();
 };
 
