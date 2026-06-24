@@ -283,6 +283,20 @@ body{
 @keyframes slideIn{from{opacity:0;transform:translateX(5px);}to{opacity:1;transform:none;}}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 @keyframes kfIn{from{opacity:0;transform:translateX(10px);}to{opacity:1;transform:none;}}
+
+/* Shortcuts panel */
+#shortcuts-panel{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px);}
+#shortcuts-panel.on{display:flex;}
+.sp-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);
+  padding:22px 28px;min-width:320px;box-shadow:0 16px 48px rgba(0,0,0,.6);}
+.sp-title{font-size:12px;font-weight:700;color:var(--bright);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;}
+.sp-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;
+  border-bottom:1px solid var(--border);font-size:11px;gap:20px;}
+.sp-row:last-child{border-bottom:none;}
+.sp-key{color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;}
+.sp-desc{color:var(--text-dim);text-align:right;}
+.sp-close{margin-top:14px;font-size:10px;color:var(--text-dim);text-align:center;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -353,6 +367,8 @@ body{
   <button class="toggle-btn de-btn on" id="deBtn" onclick="tgl('deaths')"><span class="dot"></span>Deaths</button>
   <button class="toggle-btn ht-btn"   id="htBtn" onclick="tgl('heat')"><span class="dot"></span>Heatmap</button>
   <span style="flex:1;min-width:4px"></span>
+  <button class="clear-btn" onclick="saveScreenshot()" title="Download current frame as PNG" style="border-color:var(--accent2);color:var(--accent2)">⬇ PNG</button>
+  <button class="clear-btn" onclick="toggleShortcuts()" title="Keyboard shortcuts (?)">?</button>
   <button class="clear-btn" onclick="clearAll()">✕ Clear</button>
 </div>
 
@@ -390,7 +406,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v10 — Alive HUD, phase strip, crosshair cursor, zone labels
+//  CS2 Scout v11 — 1-9 jump keys, PNG export, ? shortcut panel
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -475,6 +491,13 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyT') tgl('trails');
   if(e.code==='KeyL') tgl('labels');
   if(e.code==='KeyN') tgl('nades');
+  // 1-9: jump to 10%-90% of round
+  if(/^Digit[1-9]$/.test(e.code)&&!e.ctrlKey&&!e.altKey&&maxRoundTick){
+    currentTick=Math.round(maxRoundTick*parseInt(e.key)/10);
+    _prevTick=currentTick;flashPool=[];textPool=[];linePool=[];redraw();
+  }
+  // ?: toggle shortcuts panel
+  if(e.code==='Slash'&&e.shiftKey){e.preventDefault();toggleShortcuts();}
 });
 
 // Canvas hover — find nearest player dot and show tooltip
@@ -509,6 +532,17 @@ canvas.addEventListener('mousemove',e=>{
   }
 });
 canvas.addEventListener('mouseleave',()=>document.getElementById('hover-tip').style.display='none');
+
+function saveScreenshot(){
+  if(!selectedPlayers.length) return;
+  const a=document.createElement('a');
+  a.download='cs2scout_frame.png';
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
+function toggleShortcuts(){
+  document.getElementById('shortcuts-panel').classList.toggle('on');
+}
 
 function jumpKill(dir){
   const ticks=getAllRounds().flatMap(rc=>rc.kills.map(k=>k.tick)).sort((a,b)=>a-b);
@@ -1461,5 +1495,22 @@ fetch('scout_data.json').then(r=>r.json()).then(initData)
 
 RADAR.onload=()=>{redraw();};
 </script>
+
+<div id="shortcuts-panel" onclick="toggleShortcuts()">
+  <div class="sp-box" onclick="event.stopPropagation()">
+    <div class="sp-title">Keyboard Shortcuts</div>
+    <div class="sp-row"><span class="sp-key">Space</span><span class="sp-desc">Play / Pause</span></div>
+    <div class="sp-row"><span class="sp-key">← →</span><span class="sp-desc">Scrub ±4 seconds</span></div>
+    <div class="sp-row"><span class="sp-key">J / K</span><span class="sp-desc">Previous / Next kill</span></div>
+    <div class="sp-row"><span class="sp-key">[ / ]</span><span class="sp-desc">Halve / Double speed</span></div>
+    <div class="sp-row"><span class="sp-key">1 – 9</span><span class="sp-desc">Jump to 10% – 90% of round</span></div>
+    <div class="sp-row"><span class="sp-key">T</span><span class="sp-desc">Toggle trails</span></div>
+    <div class="sp-row"><span class="sp-key">L</span><span class="sp-desc">Toggle player labels</span></div>
+    <div class="sp-row"><span class="sp-key">N</span><span class="sp-desc">Toggle nades</span></div>
+    <div class="sp-row"><span class="sp-key">H</span><span class="sp-desc">Toggle heatmap</span></div>
+    <div class="sp-row"><span class="sp-key">? (Shift+/)</span><span class="sp-desc">This help panel</span></div>
+    <div class="sp-close" onclick="toggleShortcuts()">Click anywhere to close</div>
+  </div>
+</div>
 </body>
 </html>
