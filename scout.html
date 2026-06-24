@@ -406,7 +406,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v11 — 1-9 jump keys, PNG export, ? shortcut panel
+//  CS2 Scout v12 — Weapon-colored markers, flame fires, tactical grid fallback
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -578,10 +578,18 @@ function redraw(){
     ctx.drawImage(RADAR,0,0,CW,CH);
     ctx.fillStyle='rgba(0,0,0,0.22)';ctx.fillRect(0,0,CW,CH);
   } else {
-    ctx.fillStyle='#0b1015';ctx.fillRect(0,0,CW,CH);
-    const vg=ctx.createRadialGradient(CW/2,CH/2,CW*.25,CW/2,CH/2,CW*.72);
-    vg.addColorStop(0,'transparent');vg.addColorStop(1,'rgba(0,0,0,.55)');
-    ctx.fillStyle=vg;ctx.fillRect(0,0,CW,CH);
+    ctx.fillStyle='#080c12';ctx.fillRect(0,0,CW,CH);
+    // Tactical grid for maps without radar
+    ctx.save();
+    ctx.strokeStyle='rgba(30,45,70,.45)';ctx.lineWidth=0.5;
+    for(let x=0;x<=CW;x+=64){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
+    for(let y=0;y<=CH;y+=64){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+    ctx.strokeStyle='rgba(40,60,100,.22)';ctx.lineWidth=1.2;
+    for(let x=0;x<=CW;x+=256){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
+    for(let y=0;y<=CH;y+=256){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+    ctx.font='9px "JetBrains Mono",monospace';ctx.fillStyle='rgba(50,70,110,.35)';ctx.textAlign='left';
+    for(let x=0;x<CW;x+=256) for(let y=0;y<CH;y+=256) ctx.fillText(`${x>>2},${y>>2}`,x+4,y+12);
+    ctx.restore();
   }
 
   const hasPlayers=selectedPlayers.length>0;
@@ -792,6 +800,17 @@ function drawHeatmap(active){
   ctx.globalCompositeOperation='source-over';
 }
 
+function weaponColor(w){
+  if(!w) return '#ff3c5a';
+  const s=w.toLowerCase();
+  if(/knife|karambit|m9|flip|gut|bowie|butterfly|shadow|falchion|ursus|navaja|stiletto|talon|survival/.test(s)) return '#c084fc';
+  if(/awp|ssg|scar|g3sg|scout/.test(s)) return '#ffd060';
+  if(/deagle|desert|r8|revolver/.test(s)) return '#ff8c1a';
+  if(/glock|usp|p2000|p250|five.seven|cz75|tec.dc9/.test(s)) return '#ff9940';
+  if(/he_grenade|molotov|incendiary|c4|bomb/.test(s)) return '#30d890';
+  return '#ff3c5a';
+}
+
 function hexToRgb(hex){
   const r=parseInt(hex.slice(1,3),16);
   const g=parseInt(hex.slice(3,5),16);
@@ -860,33 +879,51 @@ function drawRound(rc){
   // ── Nades ──
   if(show.nades){drawSmokes(rc);drawFlashes(rc);drawHEs(rc);}
 
-  // ── Fires ──
+  // ── Fires (molotov/incendiary flame effect) ──
   if(show.fires){
     ctx.save();
     rc.fires.forEach(f=>{
-      if(f.tick>currentTick||f.tick<currentTick-160) return;
+      const age=currentTick-f.tick;
+      if(age<0||age>160) return;
       const[px,py]=g2p(f.x,f.y,rc.map);
-      ctx.globalAlpha=Math.max(.06,.48-(currentTick-f.tick)*.003);
-      ctx.fillStyle=tc;ctx.beginPath();ctx.arc(px,py,2.5,0,Math.PI*2);ctx.fill();
+      const fade=Math.max(.04,age<20?age/20:age>120?(160-age)/40:1);
+      // Outer glow
+      const g2=ctx.createRadialGradient(px,py,0,px,py,22);
+      g2.addColorStop(0,`rgba(255,100,0,${.18*fade})`);
+      g2.addColorStop(1,'rgba(255,60,0,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(px,py,22,0,Math.PI*2);ctx.fill();
+      // Core flame
+      const gf=ctx.createRadialGradient(px,py-4,0,px,py,11);
+      gf.addColorStop(0,`rgba(255,245,80,${.85*fade})`);
+      gf.addColorStop(0.35,`rgba(255,120,10,${.7*fade})`);
+      gf.addColorStop(1,'rgba(255,50,0,0)');
+      ctx.fillStyle=gf;ctx.beginPath();ctx.arc(px,py,11,0,Math.PI*2);ctx.fill();
+      // Bright center spark
+      ctx.fillStyle=`rgba(255,255,200,${.5*fade})`;
+      ctx.beginPath();ctx.arc(px,py-2,3.5,0,Math.PI*2);ctx.fill();
     });
     ctx.restore();
   }
 
-  // ── Kill markers ──
+  // ── Kill markers (weapon-color coded) ──
   if(show.kills){
     rc.kills.forEach(k=>{
       if(k.tick>currentTick) return;
       const[vx,vy]=g2p(k.other_x,k.other_y,rc.map);
-      ctx.save();ctx.globalAlpha=.82;drawX(vx,vy,6,'#ff3c5a',2);ctx.restore();
+      const wc=weaponColor(k.weapon);
+      const age=currentTick-k.tick;
+      const alpha=age<60?0.55+0.27*(1-age/60):0.82;
+      ctx.save();ctx.globalAlpha=alpha;drawX(vx,vy,6,wc,2);ctx.restore();
     });
   }
 
-  // ── Death markers (gold) ──
+  // ── Death markers (player-colored with fade-in) ──
   if(show.deaths){
     rc.deaths.forEach(d=>{
       if(d.tick>currentTick) return;
       const[px,py]=g2p(d.x,d.y,rc.map);
-      ctx.save();ctx.globalAlpha=.82;drawX(px,py,6,'#ffd060',2.2);ctx.restore();
+      const wc=weaponColor(d.weapon);
+      ctx.save();ctx.globalAlpha=.72;drawX(px,py,6,wc,2.2);ctx.restore();
     });
   }
 }
