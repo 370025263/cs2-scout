@@ -369,9 +369,9 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v8 — Kill beam, hover tooltip, HE arc, nade improvements
-//  New: kill engagement beam (shooter→victim dashed line+arrow), canvas hover tooltip,
-//       HE throw arc during flight, velocity arrows, [/] speed hotkeys
+//  CS2 Scout v9 — Trail ribbon, zone labels, kill auto-pause, multi-map bombsites
+//  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
+//       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
 
 const MAP_META = {
@@ -535,11 +535,21 @@ function redraw(){
 
   const active=getAllRounds();
 
-  // ── Map annotations (dust2 only) ──
+  // ── Map annotations ──
   const mapName=document.getElementById('mapFilter').value||selectedPlayers[0]?.rounds[0]?.map||'de_dust2';
+  drawZoneLabels(mapName);
   if(mapName==='de_dust2'){
     drawBombsite(-1430,2220,'B','#30d890');
     drawBombsite(1560,2150,'A','#ff4060');
+  } else if(mapName==='de_mirage'){
+    drawBombsite(-333,1600,'A','#ff4060');
+    drawBombsite(-1500,470,'B','#30d890');
+  } else if(mapName==='de_inferno'){
+    drawBombsite(2400,1310,'B','#30d890');
+    drawBombsite(850,330,'A','#ff4060');
+  } else if(mapName==='de_ancient'){
+    drawBombsite(-600,1200,'A','#ff4060');
+    drawBombsite(-2200,1500,'B','#30d890');
   }
 
   if(show.heat) drawHeatmap(active);
@@ -582,6 +592,47 @@ function redraw(){
   updateKillFeed();
   updateRoundMini(active);
   updateClock();
+}
+
+// Map zone text labels (game-world coords)
+const MAP_ZONES={
+  de_dust2:[
+    {gx:-200,gy:470,name:'MID'},
+    {gx:-1450,gy:440,name:'LONG A'},
+    {gx:820,gy:700,name:'SHORT'},
+    {gx:-2350,gy:265,name:'T SPAWN'},
+    {gx:1100,gy:560,name:'CT SPAWN'},
+    {gx:-1640,gy:870,name:'TUNNELS'},
+    {gx:-880,gy:1430,name:'LOWER MID'},
+  ],
+  de_mirage:[
+    {gx:-333,gy:1600,name:'A SITE'},
+    {gx:-1500,gy:470,name:'B SITE'},
+    {gx:-140,gy:680,name:'MID'},
+    {gx:-760,gy:1580,name:'CT'},
+    {gx:440,gy:1320,name:'T SPAWN'},
+  ],
+  de_inferno:[
+    {gx:2400,gy:1310,name:'B SITE'},
+    {gx:850,gy:330,name:'A SITE'},
+    {gx:1400,gy:650,name:'BANANA'},
+    {gx:740,gy:900,name:'MID'},
+  ],
+};
+
+function drawZoneLabels(map){
+  const zones=MAP_ZONES[map];if(!zones) return;
+  ctx.save();
+  ctx.font='500 9px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.letterSpacing='0.08em';
+  zones.forEach(z=>{
+    const[x,y]=g2p(z.gx,z.gy,map);
+    ctx.globalAlpha=0.22;
+    ctx.strokeStyle='rgba(0,0,0,.8)'; ctx.lineWidth=2.5;
+    ctx.strokeText(z.name,x,y);
+    ctx.fillStyle='#c8d4f0'; ctx.globalAlpha=0.2;
+    ctx.fillText(z.name,x,y);
+  });
+  ctx.restore();
 }
 
 function drawBombsite(gx,gy,lbl,col){
@@ -697,37 +748,38 @@ function drawRound(rc){
   const tc=rc.color;
   const isDead=rc.deaths.some(d=>d.tick<=currentTick);
 
-  // ── Bezier-smoothed trail ──
+  // ── Trail ribbon — per-segment alpha+width gradient ──
   if(show.trails&&rc.positions.length>1){
-    const TLEN=220;
+    const TLEN=260;
     const vis=rc.positions.filter(p=>p.tick<=currentTick&&p.tick>=currentTick-TLEN);
     if(vis.length>=2){
       ctx.save();
-      // Glow pass
-      ctx.strokeStyle=tc+'44';ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';
-      ctx.beginPath();
       const pts=vis.map(p=>g2p(p.x,p.y,rc.map));
-      pts.forEach((pt,i)=>i===0?ctx.moveTo(pt[0],pt[1]):ctx.lineTo(pt[0],pt[1]));
-      ctx.stroke();
-      // Smooth bezier trail using catmull-rom
-      for(let i=1;i<pts.length;i++){
-        const t=i/pts.length;
-        const alpha=isDead?0.06+t*.15:0.1+t*.75;
-        ctx.globalAlpha=alpha;
-        ctx.strokeStyle=tc;ctx.lineWidth=1.8;ctx.lineCap='round';
-        if(i===1){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);}
-        // Bezier control points (catmull-rom → bezier)
-        if(i<pts.length-1){
+      const N=pts.length;
+      // Each segment independently: fade alpha, taper width → ribbon effect
+      for(let i=1;i<N;i++){
+        const t=i/N;
+        const alpha=isDead?0.04+t*.11:0.04+t*.88;
+        const lw=isDead?0.7:0.4+t*3.2;
+        ctx.globalAlpha=alpha; ctx.strokeStyle=tc; ctx.lineWidth=lw; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(pts[i-1][0],pts[i-1][1]);
+        if(i<N-1){
           const cp1x=pts[i][0]+(pts[i+1][0]-pts[i-1][0])*0.18;
           const cp1y=pts[i][1]+(pts[i+1][1]-pts[i-1][1])*0.18;
           ctx.quadraticCurveTo(cp1x,cp1y,pts[i][0],pts[i][1]);
         } else {
           ctx.lineTo(pts[i][0],pts[i][1]);
         }
-        if(i===pts.length-1||i%8===0){ctx.stroke();ctx.beginPath();ctx.moveTo(pts[i][0],pts[i][1]);}
+        ctx.stroke();
       }
-      ctx.globalAlpha=1;
-      ctx.restore();
+      // Soft glow halo on the last 6 segments (trail head)
+      if(!isDead&&N>6){
+        ctx.globalAlpha=0.22; ctx.strokeStyle=tc; ctx.lineWidth=9; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(pts[N-6][0],pts[N-6][1]);
+        for(let i=N-5;i<N;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1; ctx.restore();
     }
   }
 
@@ -1164,13 +1216,22 @@ function togglePlay(){
   if(playing) requestAnimationFrame(animLoop);
 }
 
-let _lastTs=0;
+let _lastTs=0,_killPauseUntil=0;
 function animLoop(ts){
   if(!playing||!selectedPlayers.length) return;
   const dt=ts-_lastTs;_lastTs=ts;
   if(dt>0&&dt<200){
     speed=parseFloat(document.getElementById('speed').value)||2;
-    currentTick+=(dt/1000)*16*speed;
+    const prevT=currentTick;
+    if(ts<_killPauseUntil){
+      // Hold position during kill-pause
+    } else {
+      currentTick+=(dt/1000)*16*speed;
+      // Auto-pause 550ms when a kill occurs during playback
+      const active=getAllRounds();
+      const hitKill=active.some(rc=>rc.kills.some(k=>k.tick>prevT&&k.tick<=currentTick));
+      if(hitKill) _killPauseUntil=ts+550;
+    }
   }
   if(currentTick>=maxRoundTick){
     currentTick=maxRoundTick;playing=false;
