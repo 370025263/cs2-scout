@@ -19,9 +19,9 @@
   --text-mid: #7a82a0;
   --bright:   #dde2f0;
   --ct:       #4d9eff;
-  --ct-glow:  rgba(77,158,255,0.3);
+  --ct-glow:  rgba(77,158,255,0.35);
   --t:        #ff8c1a;
-  --t-glow:   rgba(255,140,26,0.3);
+  --t-glow:   rgba(255,140,26,0.35);
   --kill:     #ff3c5a;
   --accent:   #ff4060;
   --accent2:  #6c4fff;
@@ -30,18 +30,15 @@
   --r: 8px; --r-sm: 5px;
   --ease: cubic-bezier(0.4,0,0.2,1);
 }
-
 * { margin:0; padding:0; box-sizing:border-box; }
-
 body {
-  background: var(--bg);
-  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg); font-family: 'Inter', system-ui, sans-serif;
   color: var(--text);
   display: grid;
-  grid-template-columns: 1fr 300px;
-  grid-template-rows: 52px 1fr 48px 52px 24px;
+  grid-template-columns: 1fr 296px;
+  grid-template-rows: 52px 1fr 44px 50px 22px;
   height: 100vh; overflow: hidden;
-  gap: 1px; background-color: #040509;
+  gap: 1px; background-color: #03040a;
 }
 
 /* ── SIDEBAR ── */
@@ -51,274 +48,266 @@ body {
   display: flex; flex-direction: column; overflow: hidden;
 }
 #sidebar-header {
-  padding: 14px 16px 12px; border-bottom: 1px solid var(--border);
+  padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
   background: var(--surface2); flex-shrink: 0;
 }
-#sidebar-header .brand {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 11px;
-}
+#sidebar-header .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 #sidebar-header .brand-icon {
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   background: linear-gradient(135deg,var(--accent),var(--accent2));
   border-radius: 6px; display: flex; align-items: center;
-  justify-content: center; font-size: 14px; flex-shrink: 0;
+  justify-content: center; font-size: 13px; flex-shrink: 0;
 }
-#sidebar-header h2 {
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
-}
+#sidebar-header h2 { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
 #search-box { display: flex; gap: 5px; }
 #search-box input {
   flex: 1; background: var(--bg); border: 1px solid var(--border2);
-  color: var(--bright); padding: 7px 10px; border-radius: var(--r-sm);
+  color: var(--bright); padding: 6px 10px; border-radius: var(--r-sm);
   font-size: 11px; font-family: 'JetBrains Mono',monospace; outline: none;
-  transition: border-color 0.15s var(--ease);
+  transition: border-color 0.15s;
 }
-#search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,64,96,0.12); }
+#search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,64,96,0.1); }
 #search-box input::placeholder { color: var(--text-dim); font-family: 'Inter',sans-serif; }
 #search-box button {
   background: var(--accent); color: #fff; border: none;
-  padding: 7px 13px; border-radius: var(--r-sm); cursor: pointer;
+  padding: 6px 12px; border-radius: var(--r-sm); cursor: pointer;
   font-size: 11px; font-weight: 600; font-family: inherit;
-  transition: all 0.15s var(--ease); white-space: nowrap;
+  transition: all 0.15s; white-space: nowrap;
 }
-#search-box button:hover { background: #ff5a78; box-shadow: 0 3px 12px rgba(255,64,96,0.35); }
+#search-box button:hover { background: #ff5a78; box-shadow: 0 3px 10px rgba(255,64,96,0.3); }
 
-/* Player list */
-#players-section {
-  flex: 1; overflow-y: auto; padding: 8px;
-  display: flex; flex-direction: column; gap: 3px;
-}
+#players-section { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 #players-section::-webkit-scrollbar { width: 3px; }
 #players-section::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
 .player-card {
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 11px; border-radius: var(--r-sm); cursor: pointer;
-  transition: all 0.15s var(--ease); border: 1px solid transparent;
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-radius: var(--r-sm); cursor: pointer;
+  transition: all 0.13s; border: 1px solid transparent;
   position: relative; overflow: hidden;
-  animation: slideIn 0.25s var(--ease) both;
+  animation: slideIn 0.2s var(--ease) both;
 }
 .player-card:hover { background: var(--surface2); border-color: var(--border2); }
-.player-card.sel  { background: var(--surface2); }
 .player-card.sel::after {
-  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+  content: ''; position: absolute; left: 0; top: 5px; bottom: 5px;
   width: 3px; border-radius: 0 2px 2px 0;
 }
 .player-card.sel.CT::after { background: var(--ct); box-shadow: 0 0 8px var(--ct-glow); }
-.player-card.sel.T::after  { background: var(--t);  box-shadow: 0 0 8px var(--t-glow);  }
-.player-card.sel.CT { border-color: rgba(77,158,255,0.2); }
-.player-card.sel.T  { border-color: rgba(255,140,26,0.2);  }
-
+.player-card.sel.T::after  { background: var(--t);  box-shadow: 0 0 8px var(--t-glow); }
+.player-card.sel.CT { background: var(--surface2); border-color: rgba(77,158,255,0.18); }
+.player-card.sel.T  { background: var(--surface2); border-color: rgba(255,140,26,0.18); }
 .player-card .avatar {
-  width: 34px; height: 34px; border-radius: 8px;
+  width: 32px; height: 32px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 13px; flex-shrink: 0;
+  font-weight: 800; font-size: 12px; flex-shrink: 0;
 }
-/* CT = blue, T = orange — CORRECT mapping */
-.player-card.CT .avatar { background: rgba(77,158,255,0.12); color: var(--ct); }
-.player-card.T  .avatar { background: rgba(255,140,26,0.12);  color: var(--t);  }
+.player-card.CT .avatar { background: rgba(77,158,255,0.1); color: var(--ct); }
+.player-card.T  .avatar { background: rgba(255,140,26,0.1); color: var(--t); }
 .player-card.sel.CT .avatar { background: var(--ct); color: #001828; }
 .player-card.sel.T  .avatar { background: var(--t);  color: #1e0900; }
-
 .player-card .info { flex: 1; min-width: 0; }
-.player-card .name {
-  font-size: 12px; font-weight: 600; color: var(--bright);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
-}
-.player-card .meta { font-size: 10px; color: var(--text-dim); line-height: 1.5; }
-.player-card .kd-badge {
-  font-size: 10px; font-weight: 700; padding: 2px 6px;
-  border-radius: 4px; flex-shrink: 0; font-family: 'JetBrains Mono',monospace;
-}
-.player-card.CT .kd-badge { background: rgba(77,158,255,0.12); color: var(--ct); }
-.player-card.T  .kd-badge { background: rgba(255,140,26,0.12);  color: var(--t);  }
+.player-card .name { font-size: 12px; font-weight: 600; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.player-card .meta { font-size: 10px; color: var(--text-dim); }
+.player-card .kd-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; font-family: 'JetBrains Mono',monospace; }
+.player-card.CT .kd-badge { background: rgba(77,158,255,0.1); color: var(--ct); }
+.player-card.T  .kd-badge { background: rgba(255,140,26,0.1); color: var(--t); }
 
 #sidebar-footer {
-  padding: 8px 14px; border-top: 1px solid var(--border);
+  padding: 7px 12px; border-top: 1px solid var(--border);
   font-size: 10px; color: var(--text-dim);
   display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
 }
-.team-dist { display: flex; height: 16px; border-radius: 8px; overflow: hidden; gap: 1px; width: 80px; }
-.team-dist .ct-bar { background: var(--ct); flex: 1; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
-.team-dist .t-bar  { background: var(--t);  flex: 1; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
+.team-dist { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 1px; width: 80px; }
+.team-dist .ct-bar { background: var(--ct); flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; }
+.team-dist .t-bar  { background: var(--t);  flex: 1; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: #fff; }
 
 /* ── TOP BAR ── */
 #topbar {
   grid-column: 1; grid-row: 1;
-  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  display: flex; align-items: center; gap: 7px; padding: 0 12px;
   background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.logo { font-size: 14px; font-weight: 800; letter-spacing: -0.03em; color: var(--bright); margin-right: 4px; user-select: none; }
+.logo { font-size: 14px; font-weight: 800; letter-spacing: -0.03em; color: var(--bright); margin-right: 2px; user-select: none; }
 .logo span { background: linear-gradient(135deg,#ff4060,#6c4fff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.sep { width: 1px; height: 20px; background: var(--border2); flex-shrink: 0; }
+.sep { width: 1px; height: 18px; background: var(--border2); flex-shrink: 0; }
 .filter-label { font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
 #topbar select {
   background: var(--surface2); border: 1px solid var(--border2);
-  color: var(--text); padding: 5px 24px 5px 9px;
+  color: var(--text); padding: 4px 22px 4px 8px;
   border-radius: var(--r-sm); font-size: 11px; font-family: inherit; cursor: pointer; outline: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5'%3E%3Cpath d='M0 0l5 5 5-5z' fill='%23525870'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 7px center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5 4.5-5z' fill='%23525870'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center;
 }
-.chip { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border2); font-family: 'JetBrains Mono',monospace; }
-#score-bar { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.score-chip { font-size: 13px; font-weight: 800; font-family: 'JetBrains Mono',monospace; padding: 2px 10px; border-radius: 4px; }
-.score-chip.ct { background: rgba(77,158,255,0.15); color: var(--ct); }
-.score-chip.t  { background: rgba(255,140,26,0.15);  color: var(--t);  }
-.score-sep { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.chip { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--border2); font-family: 'JetBrains Mono',monospace; }
+#score-bar { display: flex; align-items: center; gap: 5px; margin-left: auto; }
+.score-chip { font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono',monospace; padding: 2px 10px; border-radius: 4px; }
+.score-chip.ct { background: rgba(77,158,255,0.14); color: var(--ct); }
+.score-chip.t  { background: rgba(255,140,26,0.14); color: var(--t); }
+.score-sep { font-size: 10px; font-weight: 700; color: var(--text-dim); }
 
 /* ── MAP ZONE ── */
 #map-zone {
   grid-column: 1; grid-row: 2;
   display: flex; align-items: center; justify-content: center;
   position: relative; overflow: hidden;
-  background: radial-gradient(ellipse at 40% 50%,#0d1220 0%,#07090f 100%);
+  background: radial-gradient(ellipse at 40% 50%,#0c1118 0%,#07090f 100%);
 }
 #map-zone::before {
   content: ''; position: absolute; inset: 0;
-  background-image: linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
-                    linear-gradient(90deg,rgba(255,255,255,0.012) 1px, transparent 1px);
-  background-size: 48px 48px; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(255,255,255,0.008) 1px, transparent 1px),
+                    linear-gradient(90deg,rgba(255,255,255,0.008) 1px, transparent 1px);
+  background-size: 44px 44px; pointer-events: none; z-index: 0;
 }
-#c { max-width: 100%; max-height: 100%; z-index: 1; border-radius: 3px; }
+#c { max-width: 100%; max-height: 100%; z-index: 1; border-radius: 2px; display: block; }
 
-/* ── STATS OVERLAY ── */
+/* ── OVERLAY PANELS ── */
 #stats-overlay {
   position: absolute; top: 10px; left: 10px;
-  background: rgba(7,9,15,0.92); backdrop-filter: blur(20px);
+  background: rgba(7,9,15,0.9); backdrop-filter: blur(20px);
   border: 1px solid var(--border2); border-radius: var(--r);
-  padding: 13px 16px; font-size: 11px; line-height: 1.8;
-  display: none; z-index: 10; pointer-events: none; min-width: 210px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  padding: 12px 15px; font-size: 11px; line-height: 1.7;
+  display: none; z-index: 10; pointer-events: none; min-width: 200px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
 }
-#stats-overlay .player-name { font-size: 13px; font-weight: 700; color: var(--bright); margin-bottom: 1px; }
-#stats-overlay .player-team { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
-.stat-row { display: flex; justify-content: space-between; gap: 20px; color: var(--text-dim); }
+#stats-overlay .player-name { font-size: 12px; font-weight: 700; color: var(--bright); }
+#stats-overlay .player-team { font-size: 10px; color: var(--text-dim); margin-bottom: 7px; }
+.stat-row { display: flex; justify-content: space-between; gap: 18px; color: var(--text-dim); }
 .stat-row .val { color: var(--text); font-weight: 600; font-family: 'JetBrains Mono',monospace; }
 .stat-row .val.good { color: var(--success); }
 .stat-row .val.bad  { color: var(--kill); }
-.weapon-tag { display: inline-block; padding: 1px 7px; margin: 1px 2px; border-radius: 3px; background: var(--surface3); border: 1px solid var(--border2); font-size: 9px; color: var(--text-mid); font-family: 'JetBrains Mono',monospace; }
-.stat-divider { height: 1px; background: var(--border); margin: 6px 0; }
+.stat-divider { height: 1px; background: var(--border); margin: 5px 0; }
+.weapon-tag { display: inline-block; padding: 1px 6px; margin: 1px 2px; border-radius: 3px; background: var(--surface3); border: 1px solid var(--border2); font-size: 9px; color: var(--text-mid); font-family: 'JetBrains Mono',monospace; }
 
-/* ── ROUND MINI ── */
+/* Round mini */
 #round-mini {
   position: absolute; bottom: 10px; left: 10px;
-  background: rgba(7,9,15,0.88); backdrop-filter: blur(16px);
+  background: rgba(7,9,15,0.88); backdrop-filter: blur(14px);
   border: 1px solid var(--border2); border-radius: var(--r-sm);
-  padding: 8px 14px; display: none; z-index: 10; pointer-events: none;
+  padding: 7px 12px; display: none; z-index: 10; pointer-events: none;
 }
 #round-mini .rl { font-size: 9px; color: var(--text-dim); letter-spacing: 0.07em; text-transform: uppercase; }
-#round-mini .rn { font-size: 18px; font-weight: 800; color: var(--bright); font-family: 'JetBrains Mono',monospace; line-height: 1.2; }
+#round-mini .rn { font-size: 17px; font-weight: 800; color: var(--bright); font-family: 'JetBrains Mono',monospace; line-height: 1.2; }
 
-/* ── KILL FEED ── */
+/* Kill feed */
 #killfeed {
   position: absolute; top: 10px; right: 10px;
   display: flex; flex-direction: column; gap: 3px;
-  z-index: 10; pointer-events: none; max-width: 240px;
+  z-index: 10; pointer-events: none; max-width: 230px;
 }
 .kf-entry {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 4px;
   background: rgba(7,9,15,0.88); backdrop-filter: blur(12px);
   border: 1px solid var(--border2); border-radius: 4px;
-  padding: 4px 9px; font-size: 10px; font-weight: 600;
+  padding: 3px 8px; font-size: 10px; font-weight: 600;
   font-family: 'JetBrains Mono',monospace;
-  animation: kfIn 0.2s var(--ease) both;
+  animation: kfIn 0.18s var(--ease) both;
 }
 .kf-entry .kfa { color: var(--ct); }
 .kf-entry .kfw { color: var(--text-dim); font-size: 9px; }
 .kf-entry .kfv { color: var(--kill); }
 .kf-entry.death .kfa { color: var(--kill); }
-.kf-entry.death .kfv { color: var(--text-dim); }
+.kf-entry.death .kfv { color: var(--text-mid); }
 
-/* ── EMPTY STATE ── */
+/* Empty state */
 #empty-state {
   position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; z-index: 2; pointer-events: none; gap: 10px;
+  align-items: center; justify-content: center; z-index: 2; pointer-events: none; gap: 8px;
 }
-#empty-state .es-icon { font-size: 52px; opacity: 0.18; }
-#empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text-mid); }
+#empty-state .es-icon { font-size: 48px; opacity: 0.14; }
+#empty-state h3 { font-size: 14px; font-weight: 600; color: var(--text-mid); }
 #empty-state p  { font-size: 11px; color: var(--text-dim); }
 
 /* ── TIMELINE ── */
 #timeline {
   grid-column: 1; grid-row: 3;
   background: var(--surface); border-top: 1px solid var(--border);
-  padding: 0 14px; display: flex; align-items: center; gap: 9px;
+  padding: 0 12px; display: flex; align-items: center; gap: 8px;
 }
-.time-label { font-size: 10px; color: var(--text-dim); font-weight: 500; font-family: 'JetBrains Mono',monospace; min-width: 34px; }
+.time-label { font-size: 10px; color: var(--text-dim); font-weight: 500; font-family: 'JetBrains Mono',monospace; min-width: 32px; flex-shrink: 0; }
 
-.tl-wrap { flex: 1; position: relative; height: 4px; }
-#tl-track { position: absolute; inset: 0; background: var(--border2); border-radius: 2px; }
-#tl-fill  { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: linear-gradient(90deg,var(--accent2),var(--accent)); border-radius: 2px; transition: width 0.04s linear; pointer-events: none; }
-#tl-thumb { position: absolute; top: 50%; transform: translateY(-50%); left: 0; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.5); pointer-events: none; transition: left 0.04s linear; margin-left: -7px; }
-#tl-slider { position: absolute; inset: -10px 0; opacity: 0.001; cursor: pointer; width: 100%; z-index: 5; }
+.tl-wrap { flex: 1; position: relative; height: 20px; display: flex; align-items: center; }
+#tl-track { position: absolute; left: 0; right: 0; height: 3px; background: var(--border2); border-radius: 2px; }
+#tl-fill  { position: absolute; top: 50%; transform: translateY(-50%); left: 0; height: 3px; width: 0%; background: linear-gradient(90deg,var(--accent2),var(--accent)); border-radius: 2px; pointer-events: none; }
+#tl-events { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; }
+#tl-thumb {
+  position: absolute; top: 50%; transform: translate(-50%,-50%);
+  left: 0; width: 13px; height: 13px; border-radius: 50%;
+  background: #fff; border: 2.5px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none;
+  transition: left 0.04s linear;
+}
+#tl-slider { position: absolute; inset: 0; opacity: 0.001; cursor: pointer; width: 100%; z-index: 5; }
 
 .play-btn {
-  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--accent);
-  background: transparent; color: var(--accent); cursor: pointer; font-size: 12px;
+  width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--accent);
+  background: transparent; color: var(--accent); cursor: pointer; font-size: 11px;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s var(--ease); flex-shrink: 0;
+  transition: all 0.13s; flex-shrink: 0;
 }
-.play-btn:hover { background: var(--accent); color: #fff; box-shadow: 0 0 16px rgba(255,64,96,0.3); }
+.play-btn:hover { background: var(--accent); color: #fff; box-shadow: 0 0 14px rgba(255,64,96,0.3); }
 .play-btn.on { background: var(--accent); color: #fff; }
-#speed { width: 34px; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); padding: 4px; border-radius: var(--r-sm); font-size: 11px; text-align: center; font-family: 'JetBrains Mono',monospace; outline: none; }
+
+#speed {
+  width: 32px; background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); padding: 4px; border-radius: var(--r-sm);
+  font-size: 11px; text-align: center; font-family: 'JetBrains Mono',monospace; outline: none;
+}
+.spd-lbl { font-size: 9px; color: var(--text-dim); font-weight: 600; flex-shrink: 0; }
 
 /* ── CONTROLS ── */
 #controls-row {
   grid-column: 1; grid-row: 4;
   background: var(--surface); border-top: 1px solid var(--border);
-  padding: 0 14px; display: flex; align-items: center; gap: 4px;
+  padding: 0 12px; display: flex; align-items: center; gap: 3px; overflow-x: auto;
 }
+#controls-row::-webkit-scrollbar { display: none; }
 .toggle-btn {
-  display: flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 14px;
+  display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 12px;
   border: 1px solid var(--border2); background: transparent; color: var(--text-dim);
   cursor: pointer; font-size: 10px; font-weight: 600; font-family: inherit;
-  transition: all 0.15s var(--ease); user-select: none; white-space: nowrap;
+  transition: all 0.13s; user-select: none; white-space: nowrap; flex-shrink: 0;
 }
-.toggle-btn:hover { border-color: #444; color: var(--text); }
-.toggle-btn .dot { width: 6px; height: 6px; border-radius: 50%; background: #333; transition: all 0.15s var(--ease); }
+.toggle-btn:hover { border-color: #3a4060; color: var(--text); }
+.toggle-btn .dot { width: 5px; height: 5px; border-radius: 50%; background: #333; transition: all 0.13s; }
 .toggle-btn.on { color: #fff; }
-.toggle-btn.on.trails-btn { border-color: var(--ct);    background: rgba(77,158,255,0.08); }
-.toggle-btn.on.trails-btn .dot  { background: var(--ct);    box-shadow: 0 0 6px var(--ct); }
-.toggle-btn.on.nades-btn  { border-color: var(--accent2); background: rgba(108,79,255,0.08); }
-.toggle-btn.on.nades-btn .dot   { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
-.toggle-btn.on.fires-btn  { border-color: var(--t);     background: rgba(255,140,26,0.08); }
-.toggle-btn.on.fires-btn .dot   { background: var(--t);     box-shadow: 0 0 6px var(--t); }
-.toggle-btn.on.kills-btn  { border-color: var(--kill);  background: rgba(255,60,90,0.08); }
-.toggle-btn.on.kills-btn .dot   { background: var(--kill);  box-shadow: 0 0 6px var(--kill); }
-.toggle-btn.on.deaths-btn { border-color: var(--gold);  background: rgba(255,208,96,0.08); }
-.toggle-btn.on.deaths-btn .dot  { background: var(--gold);  box-shadow: 0 0 6px var(--gold); }
-.toggle-btn.on.heat-btn   { border-color: var(--accent); background: rgba(255,64,96,0.08); }
-.toggle-btn.on.heat-btn .dot    { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.toggle-btn.on.trails-btn { border-color: var(--ct);    background: rgba(77,158,255,0.07); }
+.toggle-btn.on.trails-btn .dot  { background: var(--ct);    box-shadow: 0 0 5px var(--ct); }
+.toggle-btn.on.nades-btn  { border-color: var(--accent2); background: rgba(108,79,255,0.07); }
+.toggle-btn.on.nades-btn .dot   { background: var(--accent2); }
+.toggle-btn.on.fires-btn  { border-color: var(--t);     background: rgba(255,140,26,0.07); }
+.toggle-btn.on.fires-btn .dot   { background: var(--t); }
+.toggle-btn.on.kills-btn  { border-color: var(--kill);  background: rgba(255,60,90,0.07); }
+.toggle-btn.on.kills-btn .dot   { background: var(--kill); }
+.toggle-btn.on.deaths-btn { border-color: var(--gold);  background: rgba(255,208,96,0.07); }
+.toggle-btn.on.deaths-btn .dot  { background: var(--gold); }
+.toggle-btn.on.heat-btn   { border-color: var(--accent); background: rgba(255,64,96,0.07); }
+.toggle-btn.on.heat-btn .dot    { background: var(--accent); }
+.toggle-btn.on.labels-btn { border-color: var(--success); background: rgba(48,216,144,0.07); }
+.toggle-btn.on.labels-btn .dot  { background: var(--success); }
 .clear-btn {
   background: transparent; border: 1px solid var(--border2); color: var(--text-dim);
-  padding: 5px 11px; border-radius: 14px; cursor: pointer; font-size: 10px;
-  font-family: inherit; font-weight: 600; transition: all 0.15s var(--ease);
+  padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 10px;
+  font-family: inherit; font-weight: 600; transition: all 0.13s; flex-shrink: 0;
 }
-.clear-btn:hover { color: var(--kill); border-color: var(--kill); background: rgba(255,60,90,0.06); }
+.clear-btn:hover { color: var(--kill); border-color: var(--kill); background: rgba(255,60,90,0.05); }
 
 /* ── INFO BAR ── */
 #info {
   grid-column: 1/3; grid-row: 5;
   background: var(--surface2); border-top: 1px solid var(--border);
-  padding: 0 14px; font-size: 10px; color: var(--text-dim);
-  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px; font-size: 10px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 8px;
 }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
 .status-dot.idle    { background: var(--text-dim); }
 .status-dot.loading { background: var(--gold); animation: pulse 1s ease infinite; }
-.info-sep { width: 1px; height: 10px; background: var(--border2); }
+.info-sep { width: 1px; height: 9px; background: var(--border2); }
 
-/* ── Keyframes ── */
-@keyframes slideIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
-@keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-@keyframes kfIn    { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
-
-@media (max-width: 860px) {
-  body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 44px 48px 22px; }
-  #sidebar { display: none; }
-}
+/* Animations */
+@keyframes slideIn { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+@keyframes pulse   { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes kfIn    { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 </style>
 </head>
 <body>
@@ -331,7 +320,7 @@ body {
   <div id="empty-state">
     <div class="es-icon">🎯</div>
     <h3>CS2 Tactical Scout</h3>
-    <p>Select a player from the roster to visualize their movement</p>
+    <p>Select a player from the roster to begin analysis</p>
   </div>
 </div>
 
@@ -344,8 +333,9 @@ body {
   <select id="teamFilter" onchange="onFilterChange()">
     <option value="">All</option><option value="CT">CT</option><option value="T">T</option>
   </select>
-  <span class="filter-label">Rounds</span>
-  <span class="chip" id="roundCount">0</span>
+  <span class="filter-label">Round</span>
+  <select id="roundFilter" onchange="onFilterChange()"><option value="">All Rounds</option></select>
+  <span class="chip" id="roundCount">—</span>
   <div id="score-bar" style="display:none">
     <span class="score-chip ct" id="score-ct">—</span>
     <span class="score-sep">:</span>
@@ -354,27 +344,29 @@ body {
 </div>
 
 <div id="timeline">
-  <span class="time-label">0:00</span>
+  <span class="time-label" id="tl-cur">0:00</span>
   <div class="tl-wrap">
     <div id="tl-track"></div>
     <div id="tl-fill"></div>
+    <div id="tl-events"></div>
     <div id="tl-thumb"></div>
-    <input type="range" id="tl-slider" min="0" max="180" value="0">
+    <input type="range" id="tl-slider" min="0" max="180" value="0" step="1">
   </div>
-  <span class="time-label" id="tl-time">0:00</span>
-  <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Space to play/pause">▶</button>
-  <input id="speed" value="2" title="Speed multiplier">
-  <span style="font-size:9px;color:var(--text-dim);font-weight:600">×</span>
+  <span class="time-label" id="tl-max">0:00</span>
+  <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Space">▶</button>
+  <input id="speed" value="2" title="Playback speed">
+  <span class="spd-lbl">×</span>
 </div>
 
 <div id="controls-row">
   <button class="toggle-btn trails-btn on"  id="trailsBtn"  onclick="tgl('trails')"><span class="dot"></span>Trails</button>
+  <button class="toggle-btn labels-btn on"  id="labelsBtn"  onclick="tgl('labels')"><span class="dot"></span>Names</button>
   <button class="toggle-btn nades-btn on"   id="nadesBtn"   onclick="tgl('nades')"><span class="dot"></span>Nades</button>
-  <button class="toggle-btn fires-btn on"   id="firesBtn"   onclick="tgl('fires')"><span class="dot"></span>Fires</button>
+  <button class="toggle-btn fires-btn"      id="firesBtn"   onclick="tgl('fires')"><span class="dot"></span>Fires</button>
   <button class="toggle-btn kills-btn on"   id="killsBtn"   onclick="tgl('kills')"><span class="dot"></span>Kills</button>
   <button class="toggle-btn deaths-btn on"  id="deathsBtn"  onclick="tgl('deaths')"><span class="dot"></span>Deaths</button>
   <button class="toggle-btn heat-btn"       id="heatBtn"    onclick="tgl('heat')"><span class="dot"></span>Heatmap</button>
-  <span style="flex:1"></span>
+  <span style="flex:1;min-width:4px"></span>
   <button class="clear-btn" onclick="clearAll()">✕ Clear</button>
 </div>
 
@@ -408,9 +400,10 @@ body {
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v3 — Tactical Analysis Engine
-//  Fixes: CT/T color swap, deaths rendering, timeline
-//  New: heatmap, killfeed, gradient trails, death X-marks
+//  CS2 Scout v4 — Tactical Analysis Engine
+//  New: Position interpolation, player name labels,
+//       per-round selector, timeline event markers,
+//       death ghost state, smoother animation
 // ══════════════════════════════════════════════════════
 
 const MAP_META = {
@@ -426,8 +419,25 @@ function g2p(gx, gy, map='de_dust2') {
   return [(gx - m.px) / m.s, (m.py - gy) / m.s];
 }
 
+// ── Tick → interpolated position ──
+// Given sorted positions array and a fractional currentTick, return lerped [x,y]
+function lerpPos(positions, tick) {
+  if (!positions.length) return null;
+  if (tick <= positions[0].tick) return [positions[0].x, positions[0].y];
+  if (tick >= positions[positions.length-1].tick) return [positions[positions.length-1].x, positions[positions.length-1].y];
+  // Binary search for bracket
+  let lo = 0, hi = positions.length - 1;
+  while (lo + 1 < hi) {
+    const mid = (lo + hi) >> 1;
+    if (positions[mid].tick <= tick) lo = mid; else hi = mid;
+  }
+  const a = positions[lo], b = positions[hi];
+  const t = (tick - a.tick) / (b.tick - a.tick);
+  return [a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t];
+}
+
 const TC = { CT:'#4d9eff', T:'#ff8c1a' };
-const TG = { CT:'rgba(77,158,255,0.4)', T:'rgba(255,140,26,0.4)' };
+const TG = { CT:'rgba(77,158,255,0.35)', T:'rgba(255,140,26,0.35)' };
 const MATCH_COLORS = ['#4d9eff','#ff8c1a','#30d890','#ff4060','#a78bfa','#fbbf24','#34d399','#f472b6'];
 
 const RADAR = new Image(); RADAR.src = 'de_dust2_radar.png';
@@ -436,7 +446,7 @@ const IMG = {};
 
 let scoutData=null, selectedPlayer=null;
 let playing=false, speed=2;
-let show={trails:true,nades:true,fires:true,kills:true,deaths:true,heat:false};
+let show={trails:true,nades:true,fires:false,kills:true,deaths:true,heat:false,labels:true};
 let currentTick=0, maxRoundTick=180;
 let roundCache=[];
 
@@ -448,28 +458,43 @@ const tlSlider= document.getElementById('tl-slider');
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.target.tagName==='INPUT') return;
-  if (e.code==='Space') { e.preventDefault(); togglePlay(); }
-  if (e.code==='ArrowRight') { currentTick=Math.min(currentTick+64,maxRoundTick); draw(); }
-  if (e.code==='ArrowLeft')  { currentTick=Math.max(currentTick-64,0); draw(); }
-  if (e.code==='KeyH') tgl('heat');
-  if (e.code==='KeyT') tgl('trails');
+  if (e.code==='Space')       { e.preventDefault(); togglePlay(); }
+  if (e.code==='ArrowRight')  { currentTick=Math.min(currentTick+64,maxRoundTick); draw(); }
+  if (e.code==='ArrowLeft')   { currentTick=Math.max(currentTick-64,0); draw(); }
+  if (e.code==='KeyH')        { tgl('heat'); }
+  if (e.code==='KeyT')        { tgl('trails'); }
+  if (e.code==='KeyL')        { tgl('labels'); }
+  if (e.code==='KeyN')        { tgl('nades'); }
 });
+
+// ══════════════════════════════════════════════════════
+//  CANVAS SIZING
+// ══════════════════════════════════════════════════════
+const CW = 1024, CH = 1024;
+function fitCanvas() {
+  const zone = mapZone.getBoundingClientRect();
+  const fit  = Math.min(zone.width - 10, zone.height - 10, CW);
+  canvas.style.width  = fit + 'px';
+  canvas.style.height = fit + 'px';
+}
+window.addEventListener('resize', () => { fitCanvas(); if (roundCache.length) draw(); });
+fitCanvas();
 
 // ══════════════════════════════════════════════════════
 //  DRAW
 // ══════════════════════════════════════════════════════
 function draw() {
-  const CW=1024, CH=1024;
-  canvas.width=CW; canvas.height=CH;
-  const zone=mapZone.getBoundingClientRect();
-  const fit=Math.min(zone.width-12, zone.height-12, CW);
-  canvas.style.width=fit+'px'; canvas.style.height=fit+'px';
+  canvas.width = CW; canvas.height = CH;
 
-  if (RADAR.complete && RADAR.naturalWidth>0) {
-    ctx.drawImage(RADAR,0,0,CW,CH);
-    ctx.fillStyle='rgba(0,0,0,0.16)'; ctx.fillRect(0,0,CW,CH);
+  if (RADAR.complete && RADAR.naturalWidth > 0) {
+    ctx.drawImage(RADAR, 0, 0, CW, CH);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0, 0, CW, CH);
   } else {
-    ctx.fillStyle='#0d1220'; ctx.fillRect(0,0,CW,CH);
+    ctx.fillStyle = '#0c1118'; ctx.fillRect(0, 0, CW, CH);
+    // Vignette
+    const vg = ctx.createRadialGradient(CW/2,CH/2,CW*0.25,CW/2,CH/2,CW*0.72);
+    vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(0,0,0,0.5)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
   }
 
   document.getElementById('empty-state').style.display = roundCache.length ? 'none' : 'flex';
@@ -477,74 +502,89 @@ function draw() {
 
   const filterMap  = document.getElementById('mapFilter').value;
   const filterTeam = document.getElementById('teamFilter').value;
+  const filterRnd  = document.getElementById('roundFilter').value;
+  const activeRounds = roundCache.filter(rc =>
+    (!filterMap  || rc.map  === filterMap) &&
+    (!filterTeam || rc.team === filterTeam) &&
+    (!filterRnd  || String(rc.roundIdx) === filterRnd)
+  );
 
-  if (show.heat) drawHeatmap(filterMap, filterTeam, CW, CH);
+  if (show.heat) drawHeatmap(activeRounds);
 
-  // Bombsite labels (dust2)
-  const activeMap = filterMap || 'de_dust2';
+  // Bombsite labels
+  const activeMap = filterMap || roundCache[0]?.map || 'de_dust2';
   if (activeMap === 'de_dust2') {
     [[-1430,2220,'B','#30d890'],[1560,2150,'A','#ff4060']].forEach(([bx,by,lbl,col]) => {
       const [px,py] = g2p(bx,by);
       ctx.save();
-      ctx.strokeStyle=col; ctx.globalAlpha=0.22; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-      ctx.beginPath(); ctx.arc(px,py,36,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
-      ctx.globalAlpha=0.85;
-      ctx.font='bold 18px "Inter",sans-serif'; ctx.textAlign='center';
-      ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,0.85)';
+      ctx.globalAlpha=0.18; ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.arc(px,py,32,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha=0.7;
+      ctx.font='bold 16px "Inter",sans-serif'; ctx.textAlign='center';
+      ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,0.9)';
       ctx.strokeText(lbl,px,py+6); ctx.fillStyle=col; ctx.fillText(lbl,px,py+6);
       ctx.restore();
     });
   }
 
-  roundCache.forEach(rc => {
-    if (filterMap  && rc.map  !== filterMap)  return;
-    if (filterTeam && rc.team !== filterTeam) return;
-    drawRound(rc);
-  });
+  activeRounds.forEach(rc => drawRound(rc));
+
+  // Draw name labels last (on top of everything)
+  if (show.labels) activeRounds.forEach(rc => drawLabel(rc));
 
   updateTimeline();
 }
 
+// ── Draw a single round's data ──
 function drawRound(rc) {
   const tc = TC[rc.team] || rc.color;
   const tg = TG[rc.team] || tc;
 
+  // Check if player is alive at currentTick
+  const isDead = rc.deaths.some(d => d.tick <= currentTick);
+
   // ── Gradient trail ──
   if (show.trails && rc.positions.length > 1) {
-    const vis = rc.positions.filter(p => p.tick <= currentTick);
+    const TRAIL_LEN = 180; // show last 180 ticks of trail
+    const vis = rc.positions.filter(p => p.tick <= currentTick && p.tick >= currentTick - TRAIL_LEN);
     if (vis.length >= 2) {
-      // Glow
-      ctx.save(); ctx.strokeStyle=tg; ctx.lineWidth=8; ctx.globalAlpha=0.12;
-      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.save();
+      // Glow pass
+      ctx.strokeStyle = tg; ctx.lineWidth = 7; ctx.globalAlpha = 0.08;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
       vis.forEach((p,i) => { const [x,y]=g2p(p.x,p.y,rc.map); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
       ctx.stroke();
-      // Gradient main — newer ticks brighter
-      ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
-      for (let i=1; i<vis.length; i++) {
-        const t = i/vis.length;
-        ctx.strokeStyle=tc; ctx.globalAlpha = 0.15 + t*0.7;
-        const [ax,ay]=g2p(vis[i-1].x,vis[i-1].y,rc.map);
-        const [bx,by]=g2p(vis[i].x,  vis[i].y,  rc.map);
+      // Main trail — segments with opacity fade
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let i = 1; i < vis.length; i++) {
+        const t = i / vis.length;
+        const [ax,ay] = g2p(vis[i-1].x, vis[i-1].y, rc.map);
+        const [bx,by] = g2p(vis[i].x,   vis[i].y,   rc.map);
+        ctx.globalAlpha = isDead ? 0.08 + t * 0.18 : 0.12 + t * 0.65;
+        ctx.strokeStyle = tc;
         ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
       }
       ctx.restore();
     }
   }
 
-  // ── Current position dot ──
-  let cp=null;
-  for (let j=rc.positions.length-1; j>=0; j--) {
-    if (rc.positions[j].tick <= currentTick) { cp=rc.positions[j]; break; }
-  }
-  if (cp) {
-    const [px,py]=g2p(cp.x,cp.y,rc.map);
-    ctx.save();
-    ctx.fillStyle=tg; ctx.globalAlpha=0.3; ctx.beginPath(); ctx.arc(px,py,14,0,Math.PI*2); ctx.fill();
-    ctx.globalAlpha=1; ctx.strokeStyle=tc; ctx.lineWidth=2.5;
-    ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(px,py,4,0,Math.PI*2); ctx.fill();
-    ctx.restore();
+  // ── Interpolated current position ──
+  if (!isDead) {
+    const raw = lerpPos(rc.positions, currentTick);
+    if (raw) {
+      const [px,py] = g2p(raw[0], raw[1], rc.map);
+      drawPlayerDot(px, py, tc, tg, rc.team);
+    }
+  } else {
+    // Ghost X where player died
+    const deathEvt = rc.deaths.find(d => d.tick <= currentTick);
+    if (deathEvt) {
+      const [px,py] = g2p(deathEvt.x, deathEvt.y, rc.map);
+      ctx.save(); ctx.globalAlpha = 0.5;
+      drawX(px, py, 8, tc, 2);
+      ctx.restore();
+    }
   }
 
   // ── Nades ──
@@ -554,97 +594,137 @@ function drawRound(rc) {
   if (show.fires) {
     ctx.save();
     rc.fires.forEach(f => {
-      if (f.tick > currentTick) return;
-      const [px,py]=g2p(f.x,f.y,rc.map);
-      const alpha=Math.max(0.04, 0.55 - (currentTick-f.tick)*0.002);
-      ctx.globalAlpha=alpha; ctx.fillStyle=tc;
+      if (f.tick > currentTick || f.tick < currentTick - 180) return;
+      const [px,py] = g2p(f.x, f.y, rc.map);
+      const fade = Math.max(0.08, 0.5 - (currentTick - f.tick) * 0.003);
+      ctx.globalAlpha = fade; ctx.fillStyle = tc;
       ctx.beginPath(); ctx.arc(px,py,2.5,0,Math.PI*2); ctx.fill();
     });
     ctx.restore();
   }
 
-  // ── Kill markers (X at victim) ──
+  // ── Kill markers ──
   if (show.kills) {
     rc.kills.forEach(k => {
       if (k.tick > currentTick) return;
-      const [px,py]=g2p(k.x,      k.y,       rc.map);
-      const [vx,vy]=g2p(k.other_x,k.other_y, rc.map);
-      ctx.save();
-      ctx.strokeStyle='rgba(255,60,90,0.3)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(vx,vy); ctx.stroke();
-      ctx.setLineDash([]);
-      drawX(vx,vy,7,'#ff3c5a',2);
+      const [vx,vy] = g2p(k.other_x, k.other_y, rc.map);
+      ctx.save(); ctx.globalAlpha = 0.85;
+      drawX(vx, vy, 6, '#ff3c5a', 2);
       ctx.restore();
     });
   }
 
-  // ── Death markers (gold X at player's death position) ──
+  // ── Death markers (gold X at self's death position) ──
   if (show.deaths) {
     rc.deaths.forEach(d => {
       if (d.tick > currentTick) return;
-      const [px,py]=g2p(d.x,      d.y,       rc.map);
-      const [kx,ky]=g2p(d.other_x,d.other_y, rc.map);
-      ctx.save();
-      ctx.strokeStyle='rgba(255,208,96,0.2)'; ctx.lineWidth=1; ctx.setLineDash([3,6]);
-      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(kx,ky); ctx.stroke();
-      ctx.setLineDash([]);
-      drawX(px,py,7,'#ffd060',2.5);
+      const [px,py] = g2p(d.x, d.y, rc.map);
+      ctx.save(); ctx.globalAlpha = 0.85;
+      drawX(px, py, 6, '#ffd060', 2.2);
       ctx.restore();
     });
   }
 }
 
-function drawX(x,y,r,color,lw) {
-  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.globalAlpha=0.9; ctx.lineCap='round';
-  ctx.beginPath(); ctx.arc(x,y,r+3,0,Math.PI*2); ctx.stroke();
-  const d=r*0.65;
-  ctx.beginPath(); ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d); ctx.stroke();
-  ctx.globalAlpha=1;
+// ── Player name label ──
+function drawLabel(rc) {
+  const isDead = rc.deaths.some(d => d.tick <= currentTick);
+  if (isDead) return;
+  const raw = lerpPos(rc.positions, currentTick);
+  if (!raw) return;
+  const [px,py] = g2p(raw[0], raw[1], rc.map);
+  const tc = TC[rc.team] || rc.color;
+  const label = rc.playerName || '';
+
+  ctx.save();
+  ctx.font = '600 10px "Inter",sans-serif';
+  ctx.textAlign = 'center';
+  const tw = ctx.measureText(label).width;
+  const lx = px, ly = py - 16;
+  // Pill background
+  ctx.fillStyle = 'rgba(7,9,15,0.78)';
+  const pad = 4;
+  ctx.beginPath();
+  ctx.roundRect(lx - tw/2 - pad, ly - 8, tw + pad*2, 13, 3);
+  ctx.fill();
+  // Text
+  ctx.fillStyle = tc; ctx.globalAlpha = 0.95;
+  ctx.fillText(label, lx, ly + 2);
+  ctx.restore();
 }
 
-// ── Nade trajectory helper ──
+function drawPlayerDot(px, py, tc, tg, team) {
+  ctx.save();
+  // Outer glow
+  ctx.fillStyle = tg; ctx.globalAlpha = 0.25;
+  ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI*2); ctx.fill();
+  // Ring
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = tc; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI*2); ctx.stroke();
+  // Fill
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = team === 'CT' ? 'rgba(10,30,60,0.9)' : 'rgba(40,18,5,0.9)';
+  ctx.beginPath(); ctx.arc(px, py, 6.5, 0, Math.PI*2); ctx.fill();
+  // Team indicator dot
+  ctx.fillStyle = tc;
+  ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawX(x, y, r, color, lw) {
+  const d = r * 0.68;
+  ctx.save();
+  // Shadow
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = lw + 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, r+2, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d); ctx.stroke();
+  // Color
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, r+2, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x-d,y-d); ctx.lineTo(x+d,y+d); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+d,y-d); ctx.lineTo(x-d,y+d); ctx.stroke();
+  ctx.restore();
+}
+
+// ── Nade helpers ──
 function getTraj(nade, lx, ly, map) {
-  const t=nade.trajectory||[];
-  if (t.length>=2) return t.map(pt=>({tick:pt.tick,cx:g2p(pt.x,pt.y,map)[0],cy:g2p(pt.x,pt.y,map)[1]}));
-  const [tx,ty]=g2p(nade.throw_x,nade.throw_y,map);
-  const [ex,ey]=lx!=null?g2p(lx,ly,map):[tx+40,ty-40];
-  return Array.from({length:9},(_,i)=>{
-    const f=i/8;
-    return {tick:nade.tick+Math.round(f*32), cx:tx+(ex-tx)*f, cy:ty+(ey-ty)*f - 26*Math.sin(Math.PI*f)};
+  const t = nade.trajectory || [];
+  if (t.length >= 2) return t.map(pt => ({ tick:pt.tick, cx:g2p(pt.x,pt.y,map)[0], cy:g2p(pt.x,pt.y,map)[1] }));
+  const [tx,ty] = g2p(nade.throw_x, nade.throw_y, map);
+  const [ex,ey] = lx != null ? g2p(lx, ly, map) : [tx+40, ty-40];
+  return Array.from({length:9}, (_, i) => {
+    const f = i / 8;
+    return { tick: nade.tick + Math.round(f*28), cx: tx+(ex-tx)*f, cy: ty+(ey-ty)*f - 22*Math.sin(Math.PI*f) };
   });
 }
 
 function drawSmokes(rc) {
   rc.smokes.forEach(s => {
-    const age=currentTick-s.tick; if (age<0||age>580) return;
-    const traj=getTraj(s,s.land_x,s.land_y,rc.map), last=traj[traj.length-1];
-    const FLIGHT=32, DUR=500;
-    if (traj.length>1) {
-      ctx.save(); ctx.strokeStyle='rgba(180,200,240,0.18)'; ctx.lineWidth=1.2; ctx.setLineDash([5,5]);
-      ctx.beginPath(); ctx.moveTo(traj[0].cx,traj[0].cy);
-      traj.forEach((p,i)=>{ if(i) ctx.lineTo(p.cx,p.cy); }); ctx.stroke();
-      ctx.setLineDash([]); ctx.restore();
-    }
+    const age = currentTick - s.tick; if (age < 0 || age > 578) return;
+    const traj = getTraj(s, s.land_x, s.land_y, rc.map);
+    const last = traj[traj.length-1];
+    const FLIGHT = 28, DUR = 500;
     ctx.save();
-    if (age<=FLIGHT) {
-      const t=age/FLIGHT, idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
+    if (age <= FLIGHT) {
+      const t=age/FLIGHT, idx=Math.min(Math.floor(t*(traj.length-1)), traj.length-2);
       const f=t*(traj.length-1)-idx;
       const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*f;
       const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*f;
-      if (IMG.smoke.complete&&IMG.smoke.naturalWidth>0) { ctx.globalAlpha=0.8; ctx.drawImage(IMG.smoke,cx-12,cy-12,24,24); }
-      else { ctx.fillStyle='#8ab4c8'; ctx.beginPath(); ctx.arc(cx,cy,5,0,Math.PI*2); ctx.fill(); }
+      if (IMG.smoke.complete && IMG.smoke.naturalWidth > 0) { ctx.globalAlpha=0.75; ctx.drawImage(IMG.smoke,cx-11,cy-11,22,22); }
+      else { ctx.fillStyle='#8ab4c8'; ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill(); }
     } else {
-      const sa=age-FLIGHT; if(sa>DUR) { ctx.restore(); return; }
+      const sa=age-FLIGHT; if(sa>DUR){ctx.restore();return;}
       const fade=sa<40?sa/40:sa>DUR-60?(DUR-sa)/60:1;
-      const expand=20+sa*0.05;
+      const expand=18+sa*0.045;
       for(let w=0;w<3;w++){
-        const r=expand-w*5; if(r<3) continue;
-        ctx.strokeStyle=`rgba(185,205,235,${0.2*fade*(1-w*0.25)})`; ctx.lineWidth=1.5-w*0.3;
+        const r=expand-w*4; if(r<2) continue;
+        ctx.strokeStyle=`rgba(175,198,228,${0.18*fade*(1-w*0.3)})`; ctx.lineWidth=1.2;
         ctx.beginPath(); ctx.arc(last.cx,last.cy,r,0,Math.PI*2); ctx.stroke();
       }
-      ctx.fillStyle=`rgba(140,168,210,${0.16*fade})`; ctx.beginPath(); ctx.arc(last.cx,last.cy,expand,0,Math.PI*2); ctx.fill();
-      if(IMG.smoke.complete){ ctx.globalAlpha=0.6*fade; ctx.drawImage(IMG.smoke,last.cx-17,last.cy-17,34,34); }
+      ctx.fillStyle=`rgba(130,160,200,${0.14*fade})`;
+      ctx.beginPath(); ctx.arc(last.cx,last.cy,expand,0,Math.PI*2); ctx.fill();
+      if(IMG.smoke.complete){ctx.globalAlpha=0.55*fade; ctx.drawImage(IMG.smoke,last.cx-15,last.cy-15,30,30);}
     }
     ctx.restore();
   });
@@ -652,20 +732,20 @@ function drawSmokes(rc) {
 
 function drawFlashes(rc) {
   rc.flashes.forEach(f=>{
-    const age=currentTick-f.tick; if(age<0||age>38) return;
-    const traj=getTraj(f,null,null,rc.map),last=traj[traj.length-1],FL=16;
+    const age=currentTick-f.tick; if(age<0||age>36) return;
+    const traj=getTraj(f,null,null,rc.map),last=traj[traj.length-1],FL=14;
     ctx.save();
     if(age<=FL){
       const t=age/FL,idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
       const fr=t*(traj.length-1)-idx;
       const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*fr;
       const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*fr;
-      if(IMG.flashbang.complete&&IMG.flashbang.naturalWidth>0){ ctx.globalAlpha=0.8; ctx.drawImage(IMG.flashbang,cx-10,cy-10,20,20); }
-      else { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill(); }
+      if(IMG.flashbang.complete&&IMG.flashbang.naturalWidth>0){ctx.globalAlpha=0.75;ctx.drawImage(IMG.flashbang,cx-9,cy-9,18,18);}
+      else{ctx.fillStyle='#fffbe0';ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();}
     } else {
-      const ea=age-FL,fa=Math.max(0,1-ea/22),er=8+ea*4;
-      ctx.fillStyle=`rgba(255,255,255,${0.45*fa})`; ctx.beginPath(); ctx.arc(last.cx,last.cy,er,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle=`rgba(160,215,255,${0.65*fa})`; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(last.cx,last.cy,er,0,Math.PI*2); ctx.stroke();
+      const ea=age-FL,fa=Math.max(0,1-ea/22),er=7+ea*4;
+      ctx.fillStyle=`rgba(255,255,240,${0.42*fa})`;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(150,210,255,${0.6*fa})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.stroke();
     }
     ctx.restore();
   });
@@ -673,24 +753,24 @@ function drawFlashes(rc) {
 
 function drawHEs(rc) {
   rc.hes.forEach(h=>{
-    const age=currentTick-h.tick; if(age<0||age>54) return;
-    const traj=getTraj(h,null,null,rc.map),last=traj[traj.length-1],FL=16;
+    const age=currentTick-h.tick; if(age<0||age>52) return;
+    const traj=getTraj(h,null,null,rc.map),last=traj[traj.length-1],FL=14;
     ctx.save();
     if(age<=FL){
       const t=age/FL,idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
       const fr=t*(traj.length-1)-idx;
       const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*fr;
       const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*fr;
-      if(IMG.he_grenade.complete&&IMG.he_grenade.naturalWidth>0){ ctx.globalAlpha=0.8; ctx.drawImage(IMG.he_grenade,cx-10,cy-10,20,20); }
-      else { ctx.fillStyle='#7dff80'; ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill(); }
+      if(IMG.he_grenade.complete&&IMG.he_grenade.naturalWidth>0){ctx.globalAlpha=0.75;ctx.drawImage(IMG.he_grenade,cx-9,cy-9,18,18);}
+      else{ctx.fillStyle='#7dff80';ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();}
     } else {
-      const ea=age-FL,fa=Math.max(0,1-ea/38),er=7+ea*3.5;
-      ctx.fillStyle=`rgba(255,130,20,${0.38*fa})`; ctx.beginPath(); ctx.arc(last.cx,last.cy,er,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle=`rgba(255,195,40,${0.6*fa})`; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(last.cx,last.cy,er+5,0,Math.PI*2); ctx.stroke();
+      const ea=age-FL,fa=Math.max(0,1-ea/38),er=6+ea*3.2;
+      ctx.fillStyle=`rgba(255,120,15,${0.35*fa})`;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(255,185,35,${0.55*fa})`;ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(last.cx,last.cy,er+4,0,Math.PI*2);ctx.stroke();
       for(let i=0;i<6;i++){
-        const ang=i*Math.PI/3+ea*0.08,dr=10+ea*2.5;
-        ctx.fillStyle=`rgba(255,200,50,${0.38*fa})`;
-        ctx.beginPath(); ctx.arc(last.cx+Math.cos(ang)*dr,last.cy+Math.sin(ang)*dr,1.8,0,Math.PI*2); ctx.fill();
+        const ang=i*Math.PI/3+ea*0.07,dr=9+ea*2.2;
+        ctx.fillStyle=`rgba(255,200,40,${0.35*fa})`;
+        ctx.beginPath();ctx.arc(last.cx+Math.cos(ang)*dr,last.cy+Math.sin(ang)*dr,1.5,0,Math.PI*2);ctx.fill();
       }
     }
     ctx.restore();
@@ -698,158 +778,196 @@ function drawHEs(rc) {
 }
 
 // ── Heatmap ──
-function drawHeatmap(filterMap, filterTeam) {
-  const off=new OffscreenCanvas(canvas.width,canvas.height);
-  const oc=off.getContext('2d');
-  const R=32;
-  roundCache.forEach(rc=>{
-    if(filterMap&&rc.map!==filterMap) return;
-    if(filterTeam&&rc.team!==filterTeam) return;
-    rc.positions.forEach(p=>{
-      const [x,y]=g2p(p.x,p.y,rc.map);
-      const col=rc.team==='CT'?'77,158,255':'255,140,26';
-      const g=oc.createRadialGradient(x,y,0,x,y,R);
-      g.addColorStop(0,`rgba(${col},0.1)`);
-      g.addColorStop(1,`rgba(${col},0)`);
-      oc.fillStyle=g; oc.beginPath(); oc.arc(x,y,R,0,Math.PI*2); oc.fill();
+function drawHeatmap(activeRounds) {
+  const off = new OffscreenCanvas(CW, CH);
+  const oc  = off.getContext('2d');
+  const R   = 30;
+  activeRounds.forEach(rc => {
+    const col = rc.team === 'CT' ? '77,158,255' : '255,140,26';
+    rc.positions.forEach(p => {
+      const [x,y] = g2p(p.x, p.y, rc.map);
+      const g = oc.createRadialGradient(x,y,0,x,y,R);
+      g.addColorStop(0, `rgba(${col},0.1)`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      oc.fillStyle = g; oc.beginPath(); oc.arc(x,y,R,0,Math.PI*2); oc.fill();
     });
   });
-  ctx.globalCompositeOperation='screen'; ctx.drawImage(off,0,0);
-  ctx.globalCompositeOperation='source-over';
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(off, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 // ══════════════════════════════════════════════════════
 //  BUILD ROUND CACHE
 // ══════════════════════════════════════════════════════
 function buildRounds(player) {
-  roundCache=[]; maxRoundTick=0;
+  roundCache = []; maxRoundTick = 0;
   if (!player) return;
-  const maps=new Set();
+  const maps = new Set();
+  const roundNums = new Set();
 
-  player.matches.forEach((match,mi)=>{
-    const color=MATCH_COLORS[mi%MATCH_COLORS.length];
-    match.rounds.forEach(r=>{
-      if(!r.positions||r.positions.length<2) return;
-      const minTick=r.positions[0].tick;
+  player.matches.forEach((match, mi) => {
+    const color = MATCH_COLORS[mi % MATCH_COLORS.length];
+    match.rounds.forEach(r => {
+      if (!r.positions || r.positions.length < 2) return;
+      const minTick = r.positions[0].tick;
+      const roundTeam = match.team; // stored as-is; halftime detection via spawn could be added later
 
-      // Per-round team from spawn position (handles halftime)
-      let roundTeam=match.team;
-      const sy=r.positions[0].y;
-      if (sy < -400) roundTeam='CT';
-      else if (sy > 1200) roundTeam='T';
-
-      // maxRoundTick: include nade durations
-      const maxTs=[
+      const maxTs = [
         ...r.positions.map(p=>p.tick-minTick),
-        ...r.fires.map(f=>f.tick-minTick),
         ...r.smokes.map(s=>s.tick-minTick+540),
         ...r.flashes.map(f=>f.tick-minTick+36),
         ...r.hes.map(h=>h.tick-minTick+54),
         ...r.kills.map(k=>k.tick-minTick),
         ...r.deaths.map(d=>d.tick-minTick),
       ];
-      const rMax=maxTs.length?Math.max(...maxTs):0;
-      if(rMax>maxRoundTick) maxRoundTick=rMax;
+      const rMax = maxTs.length ? Math.max(...maxTs) : 0;
+      if (rMax > maxRoundTick) maxRoundTick = rMax;
 
-      const nt=p=>({tick:p.tick-minTick,x:p.x,y:p.y});
+      const nt = p => ({ tick: p.tick - minTick, x: p.x, y: p.y });
+      const nd = e => ({ ...e, tick: e.tick - minTick });
+
       roundCache.push({
-        matchIdx:mi, roundIdx:r.round_num, team:roundTeam,
-        map:match.map||'de_dust2', color,
+        matchIdx: mi, roundIdx: r.round_num, team: roundTeam,
+        map: match.map || 'de_dust2', color,
+        playerName: player.name,
         positions: r.positions.map(nt),
-        smokes:    r.smokes.map(s=>({...s,tick:s.tick-minTick})),
-        flashes:   r.flashes.map(f=>({...f,tick:f.tick-minTick})),
-        hes:       r.hes.map(h=>({...h,tick:h.tick-minTick})),
-        fires:     r.fires.map(f=>({...f,tick:f.tick-minTick})),
-        kills:     r.kills.map(k=>({...k,tick:k.tick-minTick})),
-        deaths:    r.deaths.map(d=>({...d,tick:d.tick-minTick})),
+        smokes:    r.smokes.map(nd),
+        flashes:   r.flashes.map(nd),
+        hes:       r.hes.map(nd),
+        fires:     r.fires.map(nd),
+        kills:     r.kills.map(nd),
+        deaths:    r.deaths.map(nd),
       });
-      maps.add(match.map||'de_dust2');
+      maps.add(match.map || 'de_dust2');
+      roundNums.add(r.round_num);
     });
   });
 
-  const mf=document.getElementById('mapFilter');
-  mf.innerHTML='<option value="">All Maps</option>';
-  maps.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o);});
+  // Populate map filter
+  const mf = document.getElementById('mapFilter');
+  mf.innerHTML = '<option value="">All Maps</option>';
+  maps.forEach(m => { const o=document.createElement('option');o.value=m;o.textContent=m;mf.appendChild(o); });
 
-  document.getElementById('roundCount').textContent=roundCache.length;
-  tlSlider.max=maxRoundTick;
-  currentTick=Math.floor(maxRoundTick*0.05);
+  // Populate round filter
+  const rf = document.getElementById('roundFilter');
+  rf.innerHTML = '<option value="">All Rounds</option>';
+  Array.from(roundNums).sort((a,b)=>a-b).forEach(n => {
+    const o=document.createElement('option');o.value=n;o.textContent='Round '+n;rf.appendChild(o);
+  });
 
+  document.getElementById('roundCount').textContent = roundCache.length + 'r';
+  tlSlider.max = maxRoundTick;
+  currentTick = 0;
+
+  buildTimelineEvents();
   updateScoreBar(player);
   buildKillFeed(player);
   setInfo(`${player.name} · ${player.matches.length} matches · ${roundCache.length} rounds`, true);
   draw();
 }
 
-function updateScoreBar(player) {
-  let ctK=0,tK=0;
-  player.matches.forEach(m=>{
-    const isT=m.team==='T';
-    m.rounds.forEach(r=>{ if(isT) tK+=r.kills.length; else ctK+=r.kills.length; });
+// ── Timeline event markers ──
+function buildTimelineEvents() {
+  const el = document.getElementById('tl-events');
+  el.innerHTML = '';
+  if (!maxRoundTick) return;
+  const allKills  = roundCache.flatMap(rc => rc.kills);
+  const allDeaths = roundCache.flatMap(rc => rc.deaths);
+  allKills.forEach(k => {
+    const pct = k.tick / maxRoundTick * 100;
+    const dot = document.createElement('div');
+    dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:4px;height:4px;border-radius:50%;background:#ff3c5a;opacity:0.7;pointer-events:none`;
+    el.appendChild(dot);
   });
-  document.getElementById('score-ct').textContent=ctK;
-  document.getElementById('score-t').textContent=tK;
-  document.getElementById('score-bar').style.display='flex';
+  allDeaths.forEach(d => {
+    const pct = d.tick / maxRoundTick * 100;
+    const dot = document.createElement('div');
+    dot.style.cssText = `position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:4px;height:4px;border-radius:50%;background:#ffd060;opacity:0.7;pointer-events:none`;
+    el.appendChild(dot);
+  });
+}
+
+function updateScoreBar(player) {
+  let ctK=0, tK=0;
+  player.matches.forEach(m => {
+    m.rounds.forEach(r => {
+      if (m.team==='CT') ctK+=r.kills.length; else tK+=r.kills.length;
+    });
+  });
+  document.getElementById('score-ct').textContent = ctK;
+  document.getElementById('score-t').textContent  = tK;
+  document.getElementById('score-bar').style.display = 'flex';
 }
 
 // ── Kill Feed ──
-const kfEl=document.getElementById('killfeed');
-let _kfEvents=[];
+const kfEl = document.getElementById('killfeed');
+let _kfEvents = [];
 
 function buildKillFeed(player) {
-  _kfEvents=[];
-  player.matches.forEach(m=>{
-    m.rounds.forEach(r=>{
-      const minT=r.positions[0]?.tick||0;
-      r.kills.forEach(k=>_kfEvents.push({...k,tick:k.tick-minT,type:'kill',name:player.name}));
-      r.deaths.forEach(d=>_kfEvents.push({...d,tick:d.tick-minT,type:'death',name:player.name}));
+  _kfEvents = [];
+  player.matches.forEach(m => {
+    m.rounds.forEach(r => {
+      const minT = r.positions[0]?.tick || 0;
+      r.kills.forEach( k => _kfEvents.push({...k, tick:k.tick-minT, type:'kill',  name:player.name}));
+      r.deaths.forEach(d => _kfEvents.push({...d, tick:d.tick-minT, type:'death', name:player.name}));
     });
   });
-  _kfEvents.sort((a,b)=>a.tick-b.tick);
-  updateKillFeed();
+  _kfEvents.sort((a,b) => a.tick - b.tick);
 }
 
 function updateKillFeed() {
   if (!_kfEvents.length) return;
-  const WINDOW=128;
-  const vis=_kfEvents.filter(e=>e.tick>=currentTick-WINDOW&&e.tick<=currentTick);
-  kfEl.innerHTML='';
-  vis.slice(-5).reverse().forEach(e=>{
-    const div=document.createElement('div');
-    div.className='kf-entry'+(e.type==='death'?' death':'');
-    if (e.type==='kill') {
-      div.innerHTML=`<span class="kfa">${e.name}</span><span class="kfw"> ${e.weapon||'?'} </span>`;
+  const WINDOW = 120;
+  const vis = _kfEvents.filter(e => e.tick >= currentTick - WINDOW && e.tick <= currentTick);
+  kfEl.innerHTML = '';
+  vis.slice(-5).reverse().forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'kf-entry' + (e.type==='death' ? ' death' : '');
+    if (e.type === 'kill') {
+      div.innerHTML = `<span class="kfa">${e.name}</span><span class="kfw"> ${e.weapon||'?'} </span>`;
     } else {
-      div.innerHTML=`<span class="kfa">✝ </span><span class="kfw">${e.weapon||'?'} </span><span class="kfv">${e.name}</span>`;
+      div.innerHTML = `<span class="kfa">✝ </span><span class="kfw">${e.weapon||'?'} </span><span class="kfv">${e.name}</span>`;
     }
     kfEl.appendChild(div);
   });
 }
 
+function updateRoundMini() {
+  if (!roundCache.length) return;
+  const filterRnd = document.getElementById('roundFilter').value;
+  if (filterRnd) { document.getElementById('mini-round').textContent = filterRnd; return; }
+  const active = roundCache.filter(rc => {
+    const first = rc.positions[0]?.tick || 0;
+    const last  = rc.positions[rc.positions.length-1]?.tick || 0;
+    return currentTick >= first && currentTick <= last;
+  });
+  const nums = [...new Set(active.map(rc=>rc.roundIdx))];
+  document.getElementById('mini-round').textContent = nums.length ? nums.join('/') : '—';
+}
+
 // ══════════════════════════════════════════════════════
-//  SIDEBAR
+//  SIDEBAR — PLAYER LIST
 // ══════════════════════════════════════════════════════
 function buildPlayerList() {
   if (!scoutData) return;
-  const sec=document.getElementById('players-section');
-  sec.innerHTML='';
-  let ct=0,t=0;
-
-  scoutData.players.forEach((p,idx)=>{
-    if (!p.matches||!p.matches.length) return;
-    const team=p.matches[0].team;
-    if(team==='CT') ct++; else t++;
-    const totalK=p.matches.reduce((s,m)=>s+m.rounds.reduce((rs,r)=>rs+r.kills.length,0),0);
-    const totalD=p.matches.reduce((s,m)=>s+m.rounds.reduce((rs,r)=>rs+r.deaths.length,0),0);
-    const kd=totalD>0?(totalK/totalD).toFixed(1):totalK+'';
-    const rounds=p.matches.reduce((s,m)=>s+m.rounds.length,0);
-
-    const card=document.createElement('div');
-    card.className='player-card '+team;
-    card.dataset.name=p.name;
-    card.style.animationDelay=(idx*0.025)+'s';
-    card.onclick=()=>selectPlayer(p.name);
-    card.innerHTML=`
+  const sec = document.getElementById('players-section');
+  sec.innerHTML = '';
+  let ct = 0, t = 0;
+  scoutData.players.forEach((p, idx) => {
+    if (!p.matches || !p.matches.length) return;
+    const team = p.matches[0].team;
+    if (team==='CT') ct++; else t++;
+    const totalK = p.matches.reduce((s,m)=>s+m.rounds.reduce((rs,r)=>rs+r.kills.length,0),0);
+    const totalD = p.matches.reduce((s,m)=>s+m.rounds.reduce((rs,r)=>rs+r.deaths.length,0),0);
+    const kd = totalD > 0 ? (totalK/totalD).toFixed(1) : totalK+'';
+    const rounds = p.matches.reduce((s,m)=>s+m.rounds.length,0);
+    const card = document.createElement('div');
+    card.className = 'player-card ' + team;
+    card.dataset.name = p.name;
+    card.style.animationDelay = (idx * 0.022) + 's';
+    card.onclick = () => selectPlayer(p.name);
+    card.innerHTML = `
       <div class="avatar">${p.name.slice(0,2).toUpperCase()}</div>
       <div class="info">
         <div class="name">${p.name}</div>
@@ -859,12 +977,11 @@ function buildPlayerList() {
     `;
     sec.appendChild(card);
   });
-
-  document.getElementById('player-count').textContent=`${scoutData.players.length} players`;
-  const total=ct+t;
-  if(total>0){
-    const pCT=Math.max(10,Math.round(ct/total*100));
-    document.getElementById('team-dist-bar').innerHTML=
+  document.getElementById('player-count').textContent = `${scoutData.players.length} players`;
+  const total = ct + t;
+  if (total > 0) {
+    const pCT = Math.max(10, Math.round(ct / total * 100));
+    document.getElementById('team-dist-bar').innerHTML =
       `<div class="ct-bar" style="flex:${pCT}">${ct} CT</div><div class="t-bar" style="flex:${100-pCT}">${t} T</div>`;
   }
 }
@@ -874,96 +991,83 @@ function buildPlayerList() {
 // ══════════════════════════════════════════════════════
 function selectPlayer(name) {
   if (!scoutData) return;
-  selectedPlayer=scoutData.players.find(p=>p.name===name);
+  selectedPlayer = scoutData.players.find(p => p.name === name);
   if (!selectedPlayer) return;
-  document.querySelectorAll('.player-card').forEach(el=>el.classList.toggle('sel',el.dataset.name===name));
+  document.querySelectorAll('.player-card').forEach(el => el.classList.toggle('sel', el.dataset.name === name));
   buildRounds(selectedPlayer);
 
-  const ov=document.getElementById('stats-overlay');
-  ov.style.display='block';
-
-  let totalK=0,totalD=0;
-  const weapons={};
-  selectedPlayer.matches.forEach(m=>{
-    m.rounds.forEach(r=>{
-      totalK+=r.kills.length; totalD+=r.deaths.length;
-      if(r.weapon_counts) Object.entries(r.weapon_counts).forEach(([w,c])=>weapons[w]=(weapons[w]||0)+c);
+  const ov = document.getElementById('stats-overlay');
+  ov.style.display = 'block';
+  let totalK=0, totalD=0;
+  const weapons = {};
+  selectedPlayer.matches.forEach(m => {
+    m.rounds.forEach(r => {
+      totalK += r.kills.length; totalD += r.deaths.length;
+      if (r.weapon_counts) Object.entries(r.weapon_counts).forEach(([w,c])=>weapons[w]=(weapons[w]||0)+c);
     });
   });
-  const kd=totalD>0?(totalK/totalD).toFixed(2):totalK+'';
-  const kdClass=parseFloat(kd)>=1?'good':'bad';
-  const team=selectedPlayer.matches[0]?.team||'?';
-  const tc={CT:'#4d9eff',T:'#ff8c1a'}[team]||'#888';
-  const topW=Object.entries(weapons).sort((a,b)=>b[1]-a[1]).slice(0,4)
+  const kd = totalD > 0 ? (totalK/totalD).toFixed(2) : totalK+'';
+  const kdClass = parseFloat(kd) >= 1 ? 'good' : 'bad';
+  const team = selectedPlayer.matches[0]?.team || '?';
+  const tc = {CT:'#4d9eff',T:'#ff8c1a'}[team] || '#888';
+  const topW = Object.entries(weapons).sort((a,b)=>b[1]-a[1]).slice(0,4)
     .map(([w,c])=>`<span class="weapon-tag">${w}&nbsp;×${c}</span>`).join('');
-
-  ov.innerHTML=`
+  ov.innerHTML = `
     <div class="player-name" style="color:${tc}">${name}</div>
-    <div class="player-team">${team} · ${selectedPlayer.matches.length} matches · ${roundCache.length} rounds</div>
+    <div class="player-team">${team} · ${selectedPlayer.matches.length} matches</div>
     <div class="stat-divider"></div>
     <div class="stat-row"><span>Kills / Deaths</span><span class="val ${kdClass}">${totalK}&thinsp;/&thinsp;${totalD}</span></div>
     <div class="stat-row"><span>K/D Ratio</span><span class="val ${kdClass}">${kd}</span></div>
-    <div class="stat-row"><span>Steam ID</span><span class="val" style="font-size:9px">${selectedPlayer.steam_id}</span></div>
+    <div class="stat-row"><span>Rounds</span><span class="val">${roundCache.length}</span></div>
     <div class="stat-divider"></div>
-    <div style="font-size:9px;color:var(--text-dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Top Weapons</div>
-    <div>${topW||'<span style="color:var(--text-dim)">—</span>'}</div>
+    <div style="font-size:9px;color:var(--text-dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Weapons</div>
+    <div>${topW || '<span style="color:var(--text-dim)">—</span>'}</div>
   `;
-
-  document.getElementById('round-mini').style.display='block';
-  updateRoundMini();
-}
-
-function updateRoundMini() {
-  if (!roundCache.length) return;
-  const fil=document.getElementById('mapFilter').value;
-  const active=roundCache.filter(rc=>!fil||rc.map===fil);
-  if (!active.length) return;
-  const cur=active.find(rc=>{
-    const first=rc.positions[0]?.tick||0;
-    const last=rc.positions[rc.positions.length-1]?.tick||0;
-    return currentTick>=first&&currentTick<=last;
-  });
-  document.getElementById('mini-round').textContent=cur?cur.roundIdx:'—';
+  document.getElementById('round-mini').style.display = 'block';
 }
 
 // ══════════════════════════════════════════════════════
 //  TIMELINE
 // ══════════════════════════════════════════════════════
 function updateTimeline() {
-  const pct=maxRoundTick>0?(currentTick/maxRoundTick*100):0;
-  document.getElementById('tl-fill').style.width=pct+'%';
-  document.getElementById('tl-thumb').style.left=`calc(${pct}% - 7px)`;
-  tlSlider.value=currentTick; tlSlider.max=maxRoundTick;
-  const sec=currentTick/16, mins=Math.floor(sec/60), secs=Math.floor(sec%60);
-  document.getElementById('tl-time').textContent=`${mins}:${secs.toString().padStart(2,'0')}`;
-  updateKillFeed(); updateRoundMini();
+  const pct = maxRoundTick > 0 ? (currentTick / maxRoundTick * 100) : 0;
+  document.getElementById('tl-fill').style.width  = pct + '%';
+  document.getElementById('tl-thumb').style.left  = `calc(${pct}% - 6px)`;
+  tlSlider.value = currentTick; tlSlider.max = maxRoundTick;
+  const secFmt = t => { const s=Math.floor(t/16); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+  document.getElementById('tl-cur').textContent = secFmt(currentTick);
+  document.getElementById('tl-max').textContent = secFmt(maxRoundTick);
+  updateKillFeed();
+  updateRoundMini();
 }
 
-tlSlider.oninput=function(){ currentTick=parseInt(this.value); draw(); };
+tlSlider.oninput = function() { currentTick = parseInt(this.value); draw(); };
 
 function togglePlay() {
   if (!selectedPlayer) return;
-  playing=!playing;
-  const b=document.getElementById('playBtn');
-  b.textContent=playing?'⏸':'▶'; b.classList.toggle('on',playing);
-  if(playing) animLoop(0);
+  playing = !playing;
+  const b = document.getElementById('playBtn');
+  b.textContent = playing ? '⏸' : '▶'; b.classList.toggle('on', playing);
+  if (playing) requestAnimationFrame(animLoop);
 }
 
-let _lastTs=0;
+let _lastTs = 0;
 function animLoop(ts) {
-  if (!playing||!selectedPlayer) return;
-  if(ts-_lastTs>=32) {
-    _lastTs=ts;
-    speed=parseFloat(document.getElementById('speed').value)||2;
-    currentTick+=Math.round(speed*32);
-    if(currentTick>=maxRoundTick){
-      currentTick=maxRoundTick; playing=false;
-      document.getElementById('playBtn').textContent='▶';
-      document.getElementById('playBtn').classList.remove('on');
-      draw(); return;
-    }
-    draw();
+  if (!playing || !selectedPlayer) return;
+  const dt = ts - _lastTs;
+  _lastTs = ts;
+  if (dt > 0 && dt < 200) {
+    speed = parseFloat(document.getElementById('speed').value) || 2;
+    // 16 ticks/s at 60fps with speed multiplier
+    currentTick += (dt / 1000) * 16 * speed;
   }
+  if (currentTick >= maxRoundTick) {
+    currentTick = maxRoundTick; playing = false;
+    document.getElementById('playBtn').textContent = '▶';
+    document.getElementById('playBtn').classList.remove('on');
+    draw(); return;
+  }
+  draw();
   requestAnimationFrame(animLoop);
 }
 
@@ -971,12 +1075,12 @@ function animLoop(ts) {
 //  TOGGLES & FILTERS
 // ══════════════════════════════════════════════════════
 function onFilterChange() {
-  if(selectedPlayer){buildRounds(selectedPlayer);currentTick=0;draw();}
+  if (selectedPlayer) { currentTick = 0; buildRounds(selectedPlayer); }
 }
 
 function tgl(k) {
-  show[k]=!show[k];
-  document.getElementById(k+'Btn').classList.toggle('on',show[k]);
+  show[k] = !show[k];
+  document.getElementById(k+'Btn').classList.toggle('on', show[k]);
   draw();
 }
 
@@ -984,17 +1088,19 @@ function tgl(k) {
 //  CLEAR
 // ══════════════════════════════════════════════════════
 function clearAll() {
-  scoutData=null; selectedPlayer=null; roundCache=[]; playing=false; _kfEvents=[];
-  ['players-section'].forEach(id=>{ document.getElementById(id).innerHTML=''; });
-  document.getElementById('stats-overlay').style.display='none';
-  document.getElementById('round-mini').style.display='none';
-  document.getElementById('killfeed').innerHTML='';
-  document.getElementById('score-bar').style.display='none';
-  document.getElementById('roundCount').textContent='0';
-  document.getElementById('playBtn').textContent='▶'; document.getElementById('playBtn').classList.remove('on');
-  document.getElementById('player-count').textContent='0 players';
-  document.getElementById('team-dist-bar').innerHTML='<div class="ct-bar">CT</div><div class="t-bar">T</div>';
-  setInfo('Ready',false);
+  scoutData = null; selectedPlayer = null; roundCache = []; playing = false; _kfEvents = [];
+  document.getElementById('players-section').innerHTML = '';
+  document.getElementById('stats-overlay').style.display = 'none';
+  document.getElementById('round-mini').style.display = 'none';
+  document.getElementById('killfeed').innerHTML = '';
+  document.getElementById('score-bar').style.display = 'none';
+  document.getElementById('tl-events').innerHTML = '';
+  document.getElementById('roundCount').textContent = '—';
+  document.getElementById('roundFilter').innerHTML = '<option value="">All Rounds</option>';
+  document.getElementById('playBtn').textContent = '▶'; document.getElementById('playBtn').classList.remove('on');
+  document.getElementById('player-count').textContent = '0 players';
+  document.getElementById('team-dist-bar').innerHTML = '<div class="ct-bar">CT</div><div class="t-bar">T</div>';
+  setInfo('Ready', false);
   fetch('scout_data.json').then(r=>r.json()).then(initData).catch(e=>setInfo('Load error: '+e.message,false));
 }
 
@@ -1002,50 +1108,46 @@ function clearAll() {
 //  STEAM LOOKUP
 // ══════════════════════════════════════════════════════
 async function scoutSteamId() {
-  const sid=document.getElementById('steamInput').value.trim();
-  if(!sid||sid.length<10) return;
-  setInfo('Querying wmpvp.com…',true,true);
+  const sid = document.getElementById('steamInput').value.trim();
+  if (!sid || sid.length < 10) return;
+  setInfo('Querying wmpvp.com…', true, true);
   try {
-    const r=await fetch('https://api.wmpvp.com/api/csgo/home/match/list',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','token':'d1097da03df2a706653409f91de42537c2ef41cb','appversion':'3.5.4.172'},
-      body:JSON.stringify({csgoSeasonId:'recent',dataSource:3,mySteamId:76561198125512291,page:1,pageSize:10,pvpType:-1,toSteamId:parseInt(sid)}),
+    const r = await fetch('https://api.wmpvp.com/api/csgo/home/match/list', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','token':'d1097da03df2a706653409f91de42537c2ef41cb','appversion':'3.5.4.172'},
+      body: JSON.stringify({csgoSeasonId:'recent',dataSource:3,mySteamId:76561198125512291,page:1,pageSize:10,pvpType:-1,toSteamId:parseInt(sid)}),
     });
-    const d=await r.json();
-    if(!d.data?.matchList?.length){setInfo('No matches found for '+sid,false);return;}
-    const matches=d.data.matchList;
-    const dust2=matches.filter(m=>m.mapName?.includes('沙城'));
-    setInfo(`Found ${matches.length} matches (${dust2.length} dust2) — ${sid}`,true);
-    if(dust2.length){
-      document.getElementById('info-extra').textContent=dust2.map(m=>m.matchId?.replace('PVP@','')).join(' · ');
-      document.getElementById('info-extra').style.display='inline';
-      document.getElementById('info-sep2').style.display='inline';
-    }
-  } catch(e) { setInfo('API error: '+e.message,false); }
+    const d = await r.json();
+    if (!d.data?.matchList?.length) { setInfo('No matches found for '+sid, false); return; }
+    const matches = d.data.matchList;
+    setInfo(`Found ${matches.length} matches — ${sid}`, true);
+    document.getElementById('info-extra').textContent = matches.slice(0,3).map(m=>m.matchId?.replace('PVP@','')||'?').join(' · ');
+    document.getElementById('info-extra').style.display = 'inline';
+    document.getElementById('info-sep2').style.display = 'inline';
+  } catch(e) { setInfo('API error: '+e.message, false); }
 }
 
-function setInfo(msg,active,loading=false) {
-  document.getElementById('info-text').textContent=msg;
-  const dot=document.getElementById('status-dot');
-  dot.className='status-dot'+(loading?' loading':active?'':' idle');
-  document.getElementById('info-extra').style.display='none';
-  document.getElementById('info-sep2').style.display='none';
+function setInfo(msg, active, loading=false) {
+  document.getElementById('info-text').textContent = msg;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (loading ? ' loading' : active ? '' : ' idle');
+  document.getElementById('info-extra').style.display = 'none';
+  document.getElementById('info-sep2').style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
 function initData(d) {
-  scoutData=d; buildPlayerList();
-  document.getElementById('status-dot').className='status-dot';
-  setInfo(`Loaded ${d.players.length} players`,true);
+  scoutData = d; buildPlayerList();
+  setInfo(`Loaded ${d.players.length} players · ${d.map || ''}`, true);
 }
 
-fetch('scout_data.json').then(r=>r.json()).then(initData)
-  .catch(e=>setInfo('Failed to load scout_data.json: '+e.message,false));
+fetch('scout_data.json').then(r => r.json()).then(initData)
+  .catch(e => setInfo('Failed to load scout_data.json — ' + e.message, false));
 
-RADAR.onload=()=>{ if(roundCache.length) draw(); };
-window.addEventListener('resize',()=>{ if(roundCache.length) draw(); });
+RADAR.onload = () => { if (roundCache.length) draw(); };
+window.addEventListener('resize', () => { fitCanvas(); if (roundCache.length) draw(); });
 </script>
 </body>
 </html>
