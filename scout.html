@@ -387,6 +387,11 @@ body{
     <span>Click to compare · up to 5 players</span>
     <div class="sel-badges" id="sel-badges"></div>
   </div>
+  <div style="padding:4px 6px;flex-shrink:0;">
+    <input id="nameFilter" placeholder="Filter players…" oninput="filterPlayers(this.value)"
+      style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+      padding:5px 9px;border-radius:var(--r-sm);font-size:11px;font-family:inherit;outline:none;">
+  </div>
   <div id="players-section"></div>
   <div id="sidebar-footer">
     <span id="player-count">0 players</span>
@@ -406,7 +411,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v12 — Weapon-colored markers, flame fires, tactical grid fallback
+//  CS2 Scout v13 — Round-end stat card, player name filter, distance traveled
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -651,6 +656,9 @@ function redraw(){
   // ── Broadcast flash effects ──
   drawBroadcastFX();
 
+  // ── Round end stats card ──
+  drawEndCard(active);
+
   updateTimeline();
   updateKillFeed();
   updateRoundMini(active);
@@ -798,6 +806,78 @@ function drawHeatmap(active){
   });
   ctx.globalCompositeOperation='screen';ctx.drawImage(off,0,0);
   ctx.globalCompositeOperation='source-over';
+}
+
+function filterPlayers(q){
+  const lq=q.toLowerCase();
+  document.querySelectorAll('.player-card').forEach(c=>{
+    c.style.display=(!lq||c.dataset.name.toLowerCase().includes(lq))?'':'none';
+  });
+}
+
+function calcDist(positions){
+  let d=0;
+  for(let i=1;i<positions.length;i++){
+    const dx=positions[i].x-positions[i-1].x,dy=positions[i].y-positions[i-1].y;
+    d+=Math.sqrt(dx*dx+dy*dy);
+  }
+  return Math.round(d);
+}
+
+function drawEndCard(active){
+  if(!active.length||currentTick<maxRoundTick) return;
+  ctx.save();
+  // Dim overlay
+  ctx.fillStyle='rgba(5,8,14,.65)';ctx.fillRect(0,0,CW,CH);
+  const PW=400,RH=54,rows=active.length;
+  const PH=56+rows*RH+28;
+  const px=(CW-PW)/2,py=(CH-PH)/2;
+  // Panel
+  ctx.fillStyle='rgba(10,13,22,.96)';ctx.strokeStyle='rgba(255,64,96,.5)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.roundRect(px,py,PW,PH,10);ctx.fill();ctx.stroke();
+  // Header accent line
+  ctx.fillStyle='rgba(255,64,96,.85)';ctx.fillRect(px+20,py+38,PW-40,2);
+  // Title
+  ctx.fillStyle='#dde2f0';ctx.font='700 13px "Inter",sans-serif';ctx.textAlign='center';ctx.letterSpacing='.1em';
+  ctx.fillText('ROUND COMPLETE',CW/2,py+26);
+  // Player rows
+  active.forEach((rc,i)=>{
+    const K=rc.kills.length,D=rc.deaths.length;
+    const dist=(calcDist(rc.positions)/100).toFixed(1)+'m';
+    const ry=py+56+i*RH;
+    // Color bar
+    ctx.fillStyle=rc.color;ctx.globalAlpha=0.9;ctx.fillRect(px,ry,3,RH-4);
+    ctx.globalAlpha=1;
+    // Name
+    ctx.fillStyle=rc.color;ctx.font='700 12px "Inter",sans-serif';ctx.textAlign='left';
+    ctx.fillText(rc.playerName,px+14,ry+18);
+    // Team badge
+    ctx.fillStyle=rc.team==='CT'?'rgba(77,158,255,.15)':'rgba(255,140,26,.15)';
+    ctx.strokeStyle=rc.team==='CT'?'var(--ct)':'var(--t)';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(px+14,ry+24,28,11,3);ctx.fill();ctx.stroke();
+    ctx.fillStyle=rc.team==='CT'?'#4d9eff':'#ff8c1a';
+    ctx.font='600 8px "JetBrains Mono",monospace';ctx.textAlign='center';
+    ctx.fillText(rc.team,px+28,ry+33);
+    // Stats
+    ctx.fillStyle='#b8bdd0';ctx.font='12px "JetBrains Mono",monospace';ctx.textAlign='right';
+    ctx.fillText(`${K}K ${D}D`,px+PW-16,ry+18);
+    ctx.fillStyle='rgba(100,115,145,.65)';ctx.font='10px "JetBrains Mono",monospace';
+    ctx.fillText(dist,px+PW-16,ry+34);
+    // Top weapon
+    const ws=rc.kills.map(k=>k.weapon).filter(Boolean);
+    if(ws.length){
+      const freq={};ws.forEach(w=>{freq[w]=(freq[w]||0)+1;});
+      const top=Object.entries(freq).sort((a,b)=>b[1]-a[1])[0][0];
+      ctx.fillStyle=weaponColor(top);ctx.font='10px "JetBrains Mono",monospace';ctx.textAlign='left';
+      ctx.fillText(top,px+50,ry+34);
+    }
+    // Divider
+    if(i<active.length-1){ctx.fillStyle='rgba(255,255,255,.06)';ctx.fillRect(px+8,ry+RH-4,PW-16,1);}
+  });
+  // Footer
+  ctx.fillStyle='rgba(80,90,120,.5)';ctx.font='10px "Inter",sans-serif';ctx.textAlign='center';ctx.letterSpacing='0';
+  ctx.fillText('Space to replay  ·  ← to scrub back  ·  J/K to review kills',CW/2,py+PH-10);
+  ctx.restore();
 }
 
 function weaponColor(w){
