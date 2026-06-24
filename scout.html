@@ -140,7 +140,7 @@ body{
   position:relative;overflow:hidden;
   background:radial-gradient(ellipse at 40% 50%,#0c1118 0%,#07090f 100%);
 }
-#c{max-width:100%;max-height:100%;z-index:1;border-radius:2px;display:block;}
+#c{max-width:100%;max-height:100%;z-index:1;border-radius:2px;display:block;cursor:crosshair;}
 
 /* OVERLAYS */
 #stats-overlay{
@@ -200,6 +200,20 @@ body{
 #empty-state h3{font-size:14px;font-weight:600;color:var(--text-mid);}
 #empty-state p{font-size:11px;color:var(--text-dim);}
 
+/* Alive HUD — top-center of map */
+#alive-hud{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(7,9,15,.88);backdrop-filter:blur(14px);
+  border:1px solid var(--border2);border-radius:20px;
+  padding:5px 14px;z-index:10;pointer-events:none;
+  display:none;align-items:center;gap:14px;
+}
+.ah-side{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.ah-lbl{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--text-dim);}
+.ah-dots{display:flex;gap:3px;align-items:center;}
+.ah-dot{width:7px;height:7px;border-radius:50%;transition:opacity .2s;}
+.ah-dot.dead{opacity:.18;}
+
 /* TIMELINE */
 #timeline{
   grid-column:1;grid-row:3;background:var(--surface);border-top:1px solid var(--border);
@@ -208,6 +222,7 @@ body{
 .tl-time{font-size:10px;color:var(--text-dim);font-weight:500;font-family:'JetBrains Mono',monospace;min-width:32px;flex-shrink:0;}
 .tl-wrap{flex:1;position:relative;height:20px;display:flex;align-items:center;}
 #tl-track{position:absolute;left:0;right:0;height:3px;background:var(--border2);border-radius:2px;}
+#tl-phase{position:absolute;left:0;right:0;top:-5px;height:2px;border-radius:1px;pointer-events:none;opacity:.8;}
 #tl-fill{position:absolute;top:50%;transform:translateY(-50%);left:0;height:3px;width:0%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:2px;pointer-events:none;}
 #tl-events{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);pointer-events:none;}
 #tl-thumb{
@@ -283,6 +298,11 @@ body{
     <h3>CS2 Tactical Scout</h3>
     <p>Click players from the roster to compare on map</p>
   </div>
+  <div id="alive-hud">
+    <div class="ah-side"><span class="ah-lbl">CT</span><div class="ah-dots" id="ah-ct"></div></div>
+    <div style="width:1px;height:12px;background:var(--border2)"></div>
+    <div class="ah-side"><div class="ah-dots" id="ah-t"></div><span class="ah-lbl">T</span></div>
+  </div>
   <div id="hover-tip" style="display:none;position:absolute;pointer-events:none;z-index:20;
     background:rgba(7,9,15,.92);border:1px solid var(--border2);border-radius:6px;
     padding:6px 10px;font-size:11px;white-space:nowrap;backdrop-filter:blur(12px);
@@ -312,6 +332,7 @@ body{
   <span class="tl-time" id="tl-cur">0:00</span>
   <div class="tl-wrap">
     <div id="tl-track"></div>
+    <div id="tl-phase"></div>
     <div id="tl-fill"></div>
     <div id="tl-events"></div>
     <div id="tl-thumb"></div>
@@ -369,7 +390,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v9 — Trail ribbon, zone labels, kill auto-pause, multi-map bombsites
+//  CS2 Scout v10 — Alive HUD, phase strip, crosshair cursor, zone labels
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -591,6 +612,7 @@ function redraw(){
   updateTimeline();
   updateKillFeed();
   updateRoundMini(active);
+  updateAliveHUD(active);
   updateClock();
 }
 
@@ -1069,6 +1091,7 @@ function rebuildAll(){
 
   tlSlider.max=maxRoundTick;
   buildTimelineEvents();
+  updatePhaseStrip();
   rebuildKillFeed();
   updateStatsOverlay();
   updateScoreBar();
@@ -1131,6 +1154,34 @@ function updateKillFeed(){
     else div.innerHTML=`<span class="kfa" style="color:#ffd060">✝</span><span class="kfw"> ${e.weapon||'?'} </span>${nameSpan}`;
     el.appendChild(div);
   });
+}
+
+function updateAliveHUD(active){
+  const el=document.getElementById('alive-hud');
+  if(!active.length){el.style.display='none';return;}
+  // Group alive/dead by team
+  const ct=[],t_=[];
+  active.forEach(rc=>{
+    const dead=rc.deaths.some(d=>d.tick<=currentTick);
+    (rc.team==='CT'?ct:t_).push({color:rc.color,dead});
+  });
+  if(!ct.length&&!t_.length){el.style.display='none';return;}
+  const mkDots=(arr,col)=>arr.map(p=>`<div class="ah-dot${p.dead?' dead':''}" style="background:${p.color}"></div>`).join('');
+  document.getElementById('ah-ct').innerHTML=mkDots(ct,'var(--ct)');
+  document.getElementById('ah-t').innerHTML=mkDots(t_,'var(--t)');
+  el.style.display='flex';
+}
+
+function updatePhaseStrip(){
+  const el=document.getElementById('tl-phase');if(!maxRoundTick) return;
+  const bp=Math.min(240/maxRoundTick*100,100).toFixed(1);
+  const ep=Math.min(960/maxRoundTick*100,100).toFixed(1);
+  const mp=Math.min(1440/maxRoundTick*100,100).toFixed(1);
+  el.style.background=`linear-gradient(90deg,
+    rgba(80,90,130,.55) 0%,rgba(80,90,130,.55) ${bp}%,
+    rgba(48,216,144,.4) ${bp}%,rgba(48,216,144,.4) ${ep}%,
+    rgba(255,208,96,.38) ${ep}%,rgba(255,208,96,.38) ${mp}%,
+    rgba(255,60,90,.38) ${mp}%,rgba(255,60,90,.38) 100%)`;
 }
 
 function updateRoundMini(active){
@@ -1351,6 +1402,7 @@ function clearAll(){
   document.getElementById('players-section').innerHTML='';
   document.getElementById('stats-overlay').style.display='none';
   document.getElementById('round-mini').style.display='none';
+  document.getElementById('alive-hud').style.display='none';
   document.getElementById('killfeed').innerHTML='';
   document.getElementById('score-bar').style.display='none';
   document.getElementById('tl-events').innerHTML='';
