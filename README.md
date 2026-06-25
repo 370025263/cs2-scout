@@ -1,56 +1,67 @@
-# CS2 Scout — Tactical Heatmap Analysis
+# CS2 Scout — Tactical Analysis
 
-Real-time Counter-Strike 2 demo replay analysis with trajectory visualization, nade tracking, and interactive timeline.
+Counter-Strike 2 demo replay analysis: per-round player trajectories, grenade
+positions, kills/deaths, an interactive timeline, and multi-player comparison —
+rendered on the map radar for scouting an opponent's tendencies.
 
-## Features
+## Run it
 
-- **Player Trajectories** — Per-round movement paths with team-colored trails (CT Blue / T Orange)
-- **Nade Tracking** — Smoke, HE, and Flashbang grenades with real trajectory paths, moving icons, and explosion effects
-- **Interactive Timeline** — Scrub through rounds, control playback speed
-- **Per-Round Team Detection** — Automatically detects halftime side-switches
-- **Stats Overlay** — K/D, weapon usage, match/round counts
-- **Map Filters** — Filter by map, team, toggle trails/nades/fires/kills
-
-## Tech Stack
-
-- **Frontend**: HTML5 Canvas, vanilla JavaScript, modern CSS Grid layout
-- **Parser**: Go + [demoinfocs-golang](https://github.com/markus-wa/demoinfocs-golang) v5
-- **Data**: CS2 `.dem` files parsed into `scout_data.json`
-
-## Quick Start
+The app is static; it only needs to be served over HTTP (it `fetch`es `scout_data.json`):
 
 ```bash
-cd demos
-python -m http.server 8889
+python3 -m http.server 8889
+# open http://localhost:8889/   (index.html)
 ```
 
-Open `http://localhost:8889/scout.html`
+## Project layout
 
-## Files
+```
+index.html            app entry — markup only
+css/scout.css         all styles
+js/                   app logic, loaded in order (classic scripts, shared scope):
+  core.js             constants, helpers (g2p, sideColor, teamHex, clampCam,
+                      clearEffectPools), global state, canvas, keyboard + zoom/pan
+  render.js           getAllRounds, the redraw() pipeline, zones, squad lines,
+                      broadcast FX, heatmap
+  hud.js              screen-space overlays, minimap, nade legend, end card
+  entities.js         drawRound, player dots, nades (real icons), fires, kills
+  data.js             buildPlayerRounds, rebuildAll, timeline events, killfeed
+  ui.js               stats overlay, timeline, playback, sidebar, filters, init
+assets/               de_dust2_radar.png, nade_icons/*.png
+scout_data.json       parsed demo data the app loads
+parse/                Go demo parser (demoinfocs-golang v5)
+scripts/regen-data.sh regenerate scout_data.json from .dem files
+archive/              dead scaffolding kept for reference (see archive/README.md)
+```
 
-| File | Description |
-|------|-------------|
-| `scout.html` | Main tactical analysis UI |
-| `index.html` | Standalone heatmap view |
-| `scout_data.json` | Parsed demo data |
-| `parse/main_multi.go` | Multi-demo Go parser |
-| `de_dust2_radar.png` | Map radar image |
-| `smoke.png` / `he_grenade.png` / `flashbang.png` | Nade icons |
+## Regenerating data from demos
 
-## Parsing New Demos
+Requires Go ≥ 1.24.
 
 ```bash
-cd parse
-go build -o parser_multi.exe main_multi.go
-cd ..
-./parse/parser_multi.exe your_demo.dem output.json
+./scripts/regen-data.sh <demo_dir_or_file> [output.json]   # default output: scout_data.json
+# or build/run the parser directly:
+parse/build.sh
+parse/parser <demo_dir_or_file> scout_data.json
 ```
 
-## Known Issues
+The parser emits players → matches → rounds, with per-round positions, smokes
+(throw + land), flashes/HEs (throw), fires, kills and deaths, tick-normalized to
+each round's start.
 
-- CS2 demos have limited grenade trajectory data (1 point per nade); the UI interpolates 8-point paths for smooth animation
-- HE/Flashbang window is very brief (16 ticks ≈ 1 second)
-- Team detection is per-round based on spawn position (handles halftime correctly)
+## Sides (CT/T)
+
+On de_dust2, **CT spawns by the bomb sites (high world-Y, top of the radar) and T
+spawns at the bottom (low world-Y)**. The app derives each round's side directly
+from the spawn position, so it is correct even across halftime side-swaps and even
+if a `team` label in the data is wrong. (The parser writes `team` as the first-half
+side, captured at the first scored round's freezetime end — not during warmup.)
+
+## Notes
+
+- CS2 grenade entities are drawn at their landing point using real 2D-radar icons.
+- HE/flash windows are brief (~1s); smokes show a countdown.
+- Heatmaps are precomputed offscreen and cached per filter change.
 
 ## License
 

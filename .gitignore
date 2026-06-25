@@ -5,3 +5,8 @@ __pycache__/
 *.dem
 *.rar
 node_modules/
+
+# build artifacts
+parse/parser
+parse/*.exe
+scout_data.dust2.json

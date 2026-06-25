@@ -1,196 +1,164 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>de_dust2 Heatmap</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a12;font-family:'Segoe UI',-apple-system,sans-serif;color:#ddd;display:flex;flex-direction:column;align-items:center;padding:16px}
-h1{font-size:18px;font-weight:600;margin-bottom:4px;color:#fff}
-#subtitle{font-size:13px;color:#aaa;margin-bottom:12px}
-#c{border:1px solid rgba(255,255,255,0.1);border-radius:6px;cursor:crosshair}
-#panel{display:flex;gap:24px;align-items:center;margin-top:10px;font-size:13px}
-#legend{display:flex;align-items:center;gap:8px}
-#legend .bar{width:180px;height:14px;border-radius:7px}
-#legend .labels{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:2px}
-#controls label{cursor:pointer;margin-right:12px;color:#bbb;font-size:13px}
-#controls input{margin-right:4px;accent-color:#d8576b}
-</style></head>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 Scout — Tactical Analysis</title>
+<link rel="stylesheet" href="css/scout.css">
+</head>
 <body>
-<h1 id="title">de_dust2 — Combat Event Heatmap</h1>
-<div id="subtitle">loading data...</div>
-<canvas id="c"></canvas>
-<div id="panel">
-  <div id="legend">
-    <span style="font-size:11px;color:#999">Fewer</span>
-    <div><div class="bar" id="colorbar"></div><div class="labels"><span></span><span></span></div></div>
-    <span style="font-size:11px;color:#999">More</span>
+
+<div id="map-zone">
+  <canvas id="c"></canvas>
+  <div id="stats-overlay"></div>
+  <div id="killfeed"></div>
+  <div id="round-mini"><div class="rl">Round</div><div class="rn" id="mini-round">—</div></div>
+  <div id="clock-panel"><div class="ck-lbl">TIME</div><div class="ck-val" id="clock-val">1:55</div></div>
+  <div id="empty-state">
+    <div class="es-icon">🎯</div>
+    <h3>CS2 Tactical Scout</h3>
+    <p>Click players from the roster to compare on map</p>
   </div>
-  <div id="controls">
-    <label><input type="checkbox" id="showMap" checked onchange="draw()">Map</label>
-    <label><input type="checkbox" id="showHeat" checked onchange="draw()">Heatmap</label>
-    <label><input type="checkbox" id="showLabels" checked onchange="draw()">Labels</label>
+  <div id="alive-hud">
+    <div class="ah-side"><span class="ah-lbl">CT</span><span class="ah-cnt ct" id="ah-ct-cnt">—</span><div class="ah-dots" id="ah-ct"></div></div>
+    <div style="width:1px;height:14px;background:var(--border2)"></div>
+    <div class="ah-side"><div class="ah-dots" id="ah-t"></div><span class="ah-cnt t" id="ah-t-cnt">—</span><span class="ah-lbl">T</span></div>
+  </div>
+  <div id="hover-tip" style="display:none;position:absolute;pointer-events:none;z-index:20;
+    background:rgba(7,9,15,.92);border:1px solid var(--border2);border-radius:6px;
+    padding:6px 10px;font-size:11px;white-space:nowrap;backdrop-filter:blur(12px);
+    box-shadow:0 4px 16px rgba(0,0,0,.5);"></div>
+  <button id="replay-btn" style="display:none;position:absolute;left:50%;bottom:18%;transform:translateX(-50%);
+    padding:9px 22px;background:rgba(255,60,90,.12);border:1px solid rgba(255,60,90,.45);
+    border-radius:8px;color:#ff4060;font:700 13px 'Inter',sans-serif;cursor:pointer;
+    letter-spacing:.05em;z-index:25;backdrop-filter:blur(8px);
+    transition:background .15s,box-shadow .15s;"
+    onmouseenter="this.style.background='rgba(255,60,90,.22)';this.style.boxShadow='0 0 18px rgba(255,60,90,.3)'"
+    onmouseleave="this.style.background='rgba(255,60,90,.12)';this.style.boxShadow=''"
+    onclick="currentTick=0;_prevTick=-1;clearEffectPools();document.getElementById('replay-btn').style.display='none';togglePlay();">
+    ↺ Replay Round
+  </button>
+</div>
+
+<div id="topbar">
+  <div class="logo">CS2 <span>Scout</span></div>
+  <div class="vsep"></div>
+  <span class="fl">Map</span>
+  <select id="mapFilter" onchange="onFilter()"><option value="">All Maps</option></select>
+  <span class="fl">Side</span>
+  <div id="teamFilter" class="tf-pills">
+    <button class="tf-pill active" data-val="">All</button>
+    <button class="tf-pill" data-val="CT">CT</button>
+    <button class="tf-pill" data-val="T">T</button>
+  </div>
+  <span class="fl">Round</span>
+  <select id="roundFilter" onchange="onFilter()"><option value="">All</option></select>
+  <span class="chip" id="roundCount">—</span>
+  <div id="score-bar" style="display:none">
+    <span class="score-chip ct" id="score-ct">—</span>
+    <span class="score-sep">:</span>
+    <span class="score-chip t" id="score-t">—</span>
   </div>
 </div>
 
-<script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const mapImg = new Image();
-// Set onload BEFORE src to avoid race condition
-mapImg.onload = ()=>{if(heatData)draw();};
-mapImg.onerror = ()=>{console.warn('Map image failed to load');if(heatData)draw();};
-mapImg.src = 'de_dust2_map.png';
+<div id="timeline">
+  <span class="tl-time" id="tl-cur">0:00</span>
+  <div class="tl-wrap" style="position:relative">
+    <div id="tl-track"></div>
+    <div id="tl-phase"></div>
+    <div id="tl-fill"></div>
+    <div id="tl-events"></div>
+    <div id="tl-thumb"></div>
+    <input type="range" id="tl-slider" min="0" max="180" value="0" step="1">
+    <div id="tl-tip" style="display:none;position:absolute;bottom:18px;pointer-events:none;
+      background:rgba(5,7,14,.95);border:1px solid var(--border2);border-radius:4px;
+      padding:2px 6px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--bright);
+      transform:translateX(-50%);white-space:nowrap;z-index:20;"></div>
+  </div>
+  <span class="tl-time" id="tl-max">0:00</span>
+  <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Space">▶</button>
+  <input id="speed" value="2" title="Playback speed ([ / ] to halve/double)">
+  <span class="spd-lbl">×</span>
+</div>
 
-const BOMBSITES = [['B', -1430, 2220], ['A', 1560, 2150]];
-const SPAWNS = [['T', 500, 2200], ['CT', -1600, -600]];
-let heatData = null, maxV = 1;
+<div id="controls-row">
+  <button class="toggle-btn tr-btn on" id="trBtn" onclick="tgl('trails')"><span class="dot"></span>Trails</button>
+  <button class="toggle-btn la-btn on" id="laBtn" onclick="tgl('labels')"><span class="dot"></span>Names</button>
+  <button class="toggle-btn nd-btn on" id="ndBtn" onclick="tgl('nades')"><span class="dot"></span>Nades</button>
+  <button class="toggle-btn fi-btn"   id="fiBtn" onclick="tgl('fires')"><span class="dot"></span>Fires</button>
+  <button class="toggle-btn ki-btn on" id="kiBtn" onclick="tgl('kills')"><span class="dot"></span>Kills</button>
+  <button class="toggle-btn de-btn on" id="deBtn" onclick="tgl('deaths')"><span class="dot"></span>Deaths</button>
+  <button class="toggle-btn ht-btn"   id="htBtn" onclick="tgl('heat')"><span class="dot"></span>Heatmap</button>
+  <span style="flex:1;min-width:4px"></span>
+  <button class="clear-btn" onclick="saveScreenshot()" title="Download current frame as PNG" style="border-color:var(--accent2);color:var(--accent2)">⬇ PNG</button>
+  <button class="clear-btn" onclick="toggleShortcuts()" title="Keyboard shortcuts (?)">?</button>
+  <button class="clear-btn" onclick="clearAll()">✕ Clear</button>
+</div>
 
-// ---- Plasma color scale (perceptually uniform) ----
-function plasma(t) {
-  // matplotlib plasma colormap
-  let r,g,b;
-  if (t < 0.125) { let s=t/0.125; r=0.05+0.4*s; g=0.03+0.1*s; b=0.53+0.18*s; }
-  else if (t < 0.25) { let s=(t-0.125)/0.125; r=0.45+0.18*s; g=0.06+0.2*s; b=0.71-0.07*s; }
-  else if (t < 0.375) { let s=(t-0.25)/0.125; r=0.63+0.12*s; g=0.17+0.2*s; b=0.63-0.2*s; }
-  else if (t < 0.5) { let s=(t-0.375)/0.125; r=0.74+0.1*s; g=0.33+0.18*s; b=0.42-0.2*s; }
-  else if (t < 0.625) { let s=(t-0.5)/0.125; r=0.85+0.07*s; g=0.48+0.14*s; b=0.24-0.1*s; }
-  else if (t < 0.75) { let s=(t-0.625)/0.125; r=0.91+0.05*s; g=0.6+0.1*s; b=0.15-0.05*s; }
-  else if (t < 0.875) { let s=(t-0.75)/0.125; r=0.96+0.02*s; g=0.7+0.08*s; b=0.1-0.02*s; }
-  else { let s=(t-0.875)/0.125; r=0.98+0.02*s; g=0.78+0.1*s; b=0.08+0.05*s; }
-  return [Math.min(1,Math.max(0,r))*255|0, Math.min(1,Math.max(0,g))*255|0, Math.min(1,Math.max(0,b))*255|0];
-}
+<div id="sidebar">
+  <div id="sidebar-header">
+    <div class="brand">
+      <div class="brand-icon">🎯</div>
+      <h2>Player Roster</h2>
+    </div>
+    <div id="search-box">
+      <input id="steamInput" placeholder="Steam ID (76561…)" onkeydown="if(event.key==='Enter')scoutSteam()">
+      <button onclick="scoutSteam()">Lookup</button>
+    </div>
+  </div>
+  <div id="select-hint">
+    <span>Click to compare · up to 5 players</span>
+    <div class="sel-badges" id="sel-badges"></div>
+  </div>
+  <div style="padding:4px 6px;flex-shrink:0;">
+    <input id="nameFilter" placeholder="Filter players…" oninput="filterPlayers(this.value)"
+      style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+      padding:5px 9px;border-radius:var(--r-sm);font-size:11px;font-family:inherit;outline:none;">
+  </div>
+  <div id="players-section"></div>
+  <div id="sidebar-footer">
+    <span id="player-count">0 players</span>
+    <div class="team-dist" id="team-dist-bar">
+      <div class="ct-bar">CT</div><div class="t-bar">T</div>
+    </div>
+  </div>
+</div>
 
-// ---- Box blur ----
-function boxBlur(data, w, h, r) {
-  let s=new Uint8ClampedArray(data.data), d=new Uint8ClampedArray(s.length), ri=r|0;
-  for(let y=0;y<h;y++){let sr=0,sg=0,sb=0,sa=0,c=0,rs=y*w*4;for(let x=-ri;x<w;x++){let ax=x+ri,rx=x-ri-1;if(ax<w){let i=rs+ax*4;sr+=s[i];sg+=s[i+1];sb+=s[i+2];sa+=s[i+3];c++}if(rx>=0){let i=rs+rx*4;sr-=s[i];sg-=s[i+1];sb-=s[i+2];sa-=s[i+3];c--}if(x>=0){let i=rs+x*4;d[i]=sr/c;d[i+1]=sg/c;d[i+2]=sb/c;d[i+3]=sa/c}}}
-  let t=d;d=new Uint8ClampedArray(s.length);
-  for(let x=0;x<w;x++){let sr=0,sg=0,sb=0,sa=0,c=0;for(let y=-ri;y<h;y++){let ay=y+ri,ry=y-ri-1;if(ay<h){let i=ay*w*4+x*4;sr+=t[i];sg+=t[i+1];sb+=t[i+2];sa+=t[i+3];c++}if(ry>=0){let i=ry*w*4+x*4;sr-=t[i];sg-=t[i+1];sb-=t[i+2];sa-=t[i+3];c--}if(y>=0){let i=y*w*4+x*4;d[i]=sr/c;d[i+1]=sg/c;d[i+2]=sb/c;d[i+3]=sa/c}}}
-  data.data.set(d);
-}
+<div id="info">
+  <span class="sdot idle" id="sdot"></span>
+  <span id="info-text">Ready — click players to compare on map</span>
+  <span class="isep" id="info-sep2" style="display:none"></span>
+  <span id="info-extra" style="display:none;font-family:'JetBrains Mono',monospace;font-size:10px"></span>
+</div>
 
-function draw() {
-  if (!heatData) return;
-  let showMap = document.getElementById('showMap').checked;
-  let showHeat = document.getElementById('showHeat').checked;
-  let showLabels = document.getElementById('showLabels').checked;
+<script src="js/core.js"></script>
+<script src="js/render.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/data.js"></script>
+<script src="js/ui.js"></script>
 
-  let cw=1200, ch=1200;
-  canvas.width=cw; canvas.height=ch;
-  canvas.style.width=Math.min(window.innerWidth-32, cw)+'px';
-  canvas.style.height='auto';
-
-  // Compute data-driven bounds
-  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
-  heatData.heatmap.forEach(p=>{if(p.x<x0)x0=p.x;if(p.x>x1)x1=p.x;if(p.y<y0)y0=p.y;if(p.y>y1)y1=p.y;});
-  let pw=(x1-x0)*0.08,ph=(y1-y0)*0.08; x0-=pw;x1+=pw;y0-=ph;y1+=ph;
-  let ww=x1-x0,hh=y1-y0;
-  if(ww>hh){let d=(ww-hh)/2;y0-=d;y1+=d}else{let d=(hh-ww)/2;x0-=d;x1+=d}
-
-  let pad=0.06;
-  let gx=v=>pad*cw+(v-x0)/(x1-x0)*cw*(1-2*pad);
-  let gy=v=>pad*ch+(1-(v-y0)/(y1-y0))*ch*(1-2*pad);
-
-  // ---- Layer 1: Dark background ----
-  ctx.fillStyle='#080810'; ctx.fillRect(0,0,cw,ch);
-
-  // ---- Layer 2: Map (dimmed) ----
-  if (showMap && mapImg.complete && mapImg.naturalWidth>0) {
-    let dx=pad*cw, dy=pad*ch, dw=cw*(1-2*pad), dh=ch*(1-2*pad);
-    ctx.drawImage(mapImg, dx, dy, dw, dh);
-    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(dx, dy, dw, dh);
-  }
-
-  // ---- Layer 3: Smooth heatmap via offscreen canvas + blur ----
-  if (showHeat) {
-    let hc=document.createElement('canvas'); hc.width=cw; hc.height=ch;
-    let hctx=hc.getContext('2d');
-
-    // Draw white density dots with additive blending
-    hctx.globalCompositeOperation='lighter';
-    heatData.heatmap.forEach(p=>{
-      let t=p.v/maxV, px=gx(p.x), py=gy(p.y);
-      let r=12+t*60, alpha=0.12+t*0.4;
-      let grad=hctx.createRadialGradient(px,py,0,px,py,r);
-      grad.addColorStop(0,`rgba(255,255,255,${alpha})`);
-      grad.addColorStop(0.4,`rgba(255,255,255,${alpha*0.5})`);
-      grad.addColorStop(1,'rgba(0,0,0,0)');
-      hctx.fillStyle=grad; hctx.beginPath(); hctx.arc(px,py,r,0,Math.PI*2); hctx.fill();
-    });
-
-    // Blur density map
-    let hd=hctx.getImageData(0,0,cw,ch);
-    boxBlur(hd,cw,ch,25);
-    boxBlur(hd,cw,ch,25);
-    hctx.putImageData(hd,0,0);
-
-    // Color-map using plasma
-    let cm=hctx.getImageData(0,0,cw,ch);
-    let px=cm.data, maxD=0;
-    for(let i=0;i<px.length;i+=4){if(px[i]>maxD)maxD=px[i];}
-    if(maxD>0){
-      for(let i=0;i<px.length;i+=4){
-        let v=px[i]/maxD;
-        if(v<0.015){px[i+3]=0;continue;}
-        let [cr,cg,cb]=plasma(Math.pow(v,0.8));
-        let alpha=Math.min(v*1.0,0.65);
-        px[i]=cr; px[i+1]=cg; px[i+2]=cb; px[i+3]=(alpha*255)|0;
-      }
-    }
-    // Stage to a temp canvas so drawImage respects alpha (putImageData would wipe the map layer)
-    let tmp=document.createElement('canvas'); tmp.width=cw; tmp.height=ch;
-    tmp.getContext('2d').putImageData(cm,0,0);
-    ctx.drawImage(tmp,0,0);
-  }
-
-  // ---- Layer 4: Map border ----
-  let dx=pad*cw, dy=pad*ch, dw=cw*(1-2*pad), dh=ch*(1-2*pad);
-  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=2;
-  ctx.strokeRect(dx, dy, dw, dh);
-
-  // ---- Layer 5: Labels ----
-  if (showLabels) {
-    let fontSize = Math.max(20, cw*0.022);
-    BOMBSITES.forEach(([lbl,bx,by])=>{
-      let px=gx(bx), py=gy(by), r=28;
-      ctx.setLineDash([5,5]); ctx.strokeStyle='rgba(255,100,100,0.8)'; ctx.lineWidth=3;
-      ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
-      // Text with stroke for visibility
-      let col = lbl==='A'?'#f44':'#4f4';
-      ctx.font=`bold ${fontSize}px "Segoe UI",sans-serif`; ctx.textAlign='center';
-      ctx.lineWidth=3; ctx.strokeStyle='#000'; ctx.strokeText(lbl,px,py+fontSize/3);
-      ctx.fillStyle=col; ctx.fillText(lbl,px,py+fontSize/3);
-    });
-    SPAWNS.forEach(([lbl,sx,sy])=>{
-      let px=gx(sx), py=gy(sy), col=lbl==='CT'?'#5af':'#f90';
-      ctx.font=`bold ${fontSize*0.9}px "Segoe UI",sans-serif`; ctx.textAlign='center';
-      ctx.lineWidth=3; ctx.strokeStyle='#000'; ctx.strokeText(lbl,px,py+fontSize/3);
-      ctx.fillStyle=col; ctx.fillText(lbl,px,py+fontSize/3);
-    });
-    // Scale bar in bottom-left
-    let[sx,sy]=[gx(x0+400),gy(y0+400)];
-    ctx.strokeStyle='#999'; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(gx(x0+900),sy); ctx.stroke();
-    ctx.fillStyle='#bbb'; ctx.font=`bold ${fontSize*0.75}px "Segoe UI",sans-serif`; ctx.textAlign='left';
-    ctx.fillText('500 units',sx+10,sy-6);
-  }
-
-  // Draw numerical legend labels
-  let step=maxV/4;
-  document.querySelector('#legend .labels span:first-child').textContent='0';
-  document.querySelector('#legend .labels span:last-child').textContent=maxV;
-
-  // Draw colorbar gradient
-  let cb=document.getElementById('colorbar');
-  cb.style.background='linear-gradient(to right,'+Array.from({length:20},(_,i)=>'rgb('+plasma(i/19).join(',')+')').join(',')+')';
-}
-
-// ---- Load ----
-
-fetch('heatmap_data.json').then(r=>r.json()).then(d=>{
-  heatData=d; d.heatmap.forEach(p=>{if(p.v>maxV)maxV=p.v;});
-  document.getElementById('subtitle').textContent=
-    `${d.heatmap.length} combat events · ${d.total_kills} kills · ${d.total_nades} grenades · max intensity: ${maxV}`;
-  draw();
-}).catch(e=>{document.getElementById('subtitle').textContent='Error: '+e.message;});
-
-window.addEventListener('resize',draw);
-</script></body></html>
+<div id="shortcuts-panel" onclick="toggleShortcuts()">
+  <div class="sp-box" onclick="event.stopPropagation()">
+    <div class="sp-title">Keyboard Shortcuts</div>
+    <div class="sp-row"><span class="sp-key">Space</span><span class="sp-desc">Play / Pause</span></div>
+    <div class="sp-row"><span class="sp-key">← →</span><span class="sp-desc">Scrub ±4 seconds</span></div>
+    <div class="sp-row"><span class="sp-key">J / K</span><span class="sp-desc">Previous / Next kill</span></div>
+    <div class="sp-row"><span class="sp-key">[ / ]</span><span class="sp-desc">Halve / Double speed</span></div>
+    <div class="sp-row"><span class="sp-key">1 – 9</span><span class="sp-desc">Jump to 10% – 90% of round</span></div>
+    <div class="sp-row"><span class="sp-key">T</span><span class="sp-desc">Toggle trails</span></div>
+    <div class="sp-row"><span class="sp-key">L</span><span class="sp-desc">Toggle player labels</span></div>
+    <div class="sp-row"><span class="sp-key">N</span><span class="sp-desc">Toggle nades</span></div>
+    <div class="sp-row"><span class="sp-key">R</span><span class="sp-desc">Rewind to round start</span></div>
+    <div class="sp-row"><span class="sp-key">C</span><span class="sp-desc">Cycle side filter (All / CT / T)</span></div>
+    <div class="sp-row"><span class="sp-key">H</span><span class="sp-desc">Toggle heatmap</span></div>
+    <div class="sp-row"><span class="sp-key">Scroll</span><span class="sp-desc">Zoom in / out on map</span></div>
+    <div class="sp-row"><span class="sp-key">Drag</span><span class="sp-desc">Pan when zoomed in</span></div>
+    <div class="sp-row"><span class="sp-key">Dbl-click</span><span class="sp-desc">Zoom in to point (×2)</span></div>
+    <div class="sp-row"><span class="sp-key">0</span><span class="sp-desc">Reset zoom to fit</span></div>
+    <div class="sp-row"><span class="sp-key">? (Shift+/)</span><span class="sp-desc">This help panel</span></div>
+    <div class="sp-close" onclick="toggleShortcuts()">Click anywhere to close</div>
+  </div>
+</div>
+</body>
+</html>
