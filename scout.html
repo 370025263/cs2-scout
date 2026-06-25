@@ -201,9 +201,11 @@ body{
   position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;z-index:2;pointer-events:none;gap:8px;
 }
-#empty-state .es-icon{font-size:48px;opacity:.14;}
-#empty-state h3{font-size:14px;font-weight:600;color:var(--text-mid);}
+#empty-state .es-icon{font-size:48px;opacity:.14;animation:esPulse 2.8s ease-in-out infinite;}
+#empty-state h3{font-size:14px;font-weight:600;color:var(--text-mid);animation:esFade 2.8s ease-in-out infinite;}
 #empty-state p{font-size:11px;color:var(--text-dim);}
+@keyframes esPulse{0%,100%{opacity:.14;transform:scale(1);}50%{opacity:.24;transform:scale(1.1);}}
+@keyframes esFade{0%,100%{opacity:.45;}50%{opacity:.72;}}
 
 /* Alive HUD — top-center of map */
 #alive-hud{
@@ -430,7 +432,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v16 — Expanding kill rings, kill feed redesign, timeline hover preview
+//  CS2 Scout v17 — Live round stats HUD, death float text, smoke pulse ring, empty state anim
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -727,6 +729,7 @@ function redraw(){
         if(d.tick>_prevTick&&d.tick<=currentTick){
           const[dx,dy]=g2p(d.x,d.y,rc.map);
           flashPool.push({cx:dx,cy:dy,color:'#ffd060',born:currentTick,type:'death'});
+          textPool.push({cx:dx,cy:dy,text:'✝',color:rc.color,born:currentTick});
         }
       });
     });
@@ -750,6 +753,9 @@ function redraw(){
 
   // ── Mini-map inset (when zoomed) ──
   drawMiniMap();
+
+  // ── Live round stats HUD (bottom of canvas, screen space) ──
+  drawRoundStatsHUD(active);
 
   // ── Round end stats card (screen space) ──
   drawEndCard(active);
@@ -942,6 +948,44 @@ function calcDist(positions){
     d+=Math.sqrt(dx*dx+dy*dy);
   }
   return Math.round(d);
+}
+
+function drawRoundStatsHUD(active){
+  if(!active.length||currentTick>=maxRoundTick) return;
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  const N=active.length;
+  const EW=160,EH=22,GAP=5;
+  const TW=N*(EW+GAP)-GAP;
+  const sx=(CW-TW)/2,sy=CH-48;
+  active.forEach((rc,i)=>{
+    const ex=sx+i*(EW+GAP);
+    const isDead=rc.deaths.some(d=>d.tick<=currentTick);
+    const K=rc.kills.filter(k=>k.tick<=currentTick).length;
+    const D=rc.deaths.filter(d=>d.tick<=currentTick).length;
+    const a=isDead?.38:.82;
+    ctx.globalAlpha=a;
+    // Panel
+    ctx.fillStyle='rgba(4,6,12,.88)';
+    ctx.strokeStyle=isDead?'rgba(255,208,96,.18)':rc.color+'44';ctx.lineWidth=1;
+    ctx.beginPath();ctx.roundRect(ex,sy,EW,EH,4);ctx.fill();ctx.stroke();
+    // Left bar
+    ctx.fillStyle=isDead?'#ffd060':rc.color;ctx.globalAlpha=isDead?.22:a;
+    ctx.beginPath();ctx.roundRect(ex,sy,3,EH,[4,0,0,4]);ctx.fill();
+    ctx.globalAlpha=1;
+    // Name
+    const nm=rc.playerName.length>10?rc.playerName.slice(0,9)+'…':rc.playerName;
+    ctx.fillStyle=isDead?'rgba(110,120,145,.4)':rc.color;
+    ctx.font='600 9px "Inter",sans-serif';ctx.textAlign='left';
+    ctx.globalAlpha=isDead?.4:.9;
+    if(isDead){ctx.fillText('✝',ex+7,sy+14);ctx.fillText(nm,ex+18,sy+14);}
+    else ctx.fillText(nm,ex+8,sy+14);
+    // K/D stats
+    ctx.fillStyle=isDead?'rgba(150,160,180,.3)':'rgba(185,195,225,.85)';
+    ctx.font='600 9px "JetBrains Mono",monospace';ctx.textAlign='right';
+    ctx.fillText(`${K}K ${D}D`,ex+EW-7,sy+14);
+  });
+  ctx.globalAlpha=1;ctx.restore();
 }
 
 function drawVignette(){
@@ -1299,6 +1343,13 @@ function drawSmokes(rc){
       ctx.fillStyle=`rgba(120,155,195,${.12*fade})`;
       ctx.beginPath();ctx.arc(last.cx,last.cy,expand,0,Math.PI*2);ctx.fill();
       if(IMG.smoke.complete){ctx.globalAlpha=.5*fade;ctx.drawImage(IMG.smoke,last.cx-14,last.cy-14,28,28);}
+      // Pulsing edge ring while smoke is fully active
+      if(sa>40&&sa<DUR-30){
+        const pulse=Math.sin(currentTick/11)*0.35+0.65;
+        ctx.strokeStyle=`rgba(110,170,215,${fade*0.28*pulse})`;
+        ctx.lineWidth=2;ctx.globalAlpha=1;
+        ctx.beginPath();ctx.arc(last.cx,last.cy,expand+6*pulse,0,Math.PI*2);ctx.stroke();
+      }
     }
     ctx.restore();
   });
