@@ -800,6 +800,7 @@ function redraw(){
 
   // ── Mini-map inset (when zoomed) ──
   drawMiniMap();
+  drawNadeLegend();
 
   // ── Live round stats HUD (bottom of canvas, screen space) ──
   drawRoundStatsHUD(active);
@@ -1112,6 +1113,61 @@ function drawMiniMap(){
   ctx.restore();
 }
 
+function drawNadeLegend(){
+  if(!show.nades) return;
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);
+  const items=[
+    {color:'#7fc4e0',label:'Smoke',shape:'circle'},
+    {color:'#ffe060',label:'Flash',shape:'star'},
+    {color:'#ff9900',label:'HE',shape:'burst'},
+    {color:'#ff5500',label:'Fire',shape:'flame'},
+  ];
+  const W=64,ROW=16,PAD=6;
+  const X=CW-W-8,Y=CH-items.length*ROW-PAD*2-8;
+  ctx.fillStyle='rgba(5,7,13,.78)';
+  ctx.beginPath();ctx.roundRect(X,Y,W+PAD,items.length*ROW+PAD*2,4);ctx.fill();
+  ctx.strokeStyle='rgba(80,100,140,.35)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(X,Y,W+PAD,items.length*ROW+PAD*2,4);ctx.stroke();
+  ctx.font='600 8.5px "Inter",sans-serif';ctx.textAlign='left';
+  items.forEach((it,i)=>{
+    const cy=Y+PAD+i*ROW+ROW/2;
+    const cx=X+PAD+5;
+    ctx.globalAlpha=0.88;
+    if(it.shape==='circle'){
+      ctx.strokeStyle=it.color;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=it.color+'44';ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();
+    } else if(it.shape==='star'){
+      const R=4.5;ctx.fillStyle=it.color;
+      for(let k=0;k<5;k++){
+        const a=k*Math.PI*2/5-Math.PI/2;
+        const bx=cx+Math.cos(a)*R,by=cy+Math.sin(a)*R;
+        const ba=a+Math.PI*2/10;
+        const bx2=cx+Math.cos(ba)*R*0.42,by2=cy+Math.sin(ba)*R*0.42;
+        if(k===0){ctx.beginPath();ctx.moveTo(bx,by);}
+        else{ctx.lineTo(bx,by);}
+        ctx.lineTo(bx2,by2);
+      }
+      ctx.closePath();ctx.fill();
+    } else if(it.shape==='burst'){
+      for(let k=0;k<8;k++){
+        const a=k*Math.PI/4;
+        ctx.strokeStyle=it.color;ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*1.5,cy+Math.sin(a)*1.5);
+        ctx.lineTo(cx+Math.cos(a)*4.5,cy+Math.sin(a)*4.5);ctx.stroke();
+      }
+      ctx.fillStyle=it.color;ctx.beginPath();ctx.arc(cx,cy,2,0,Math.PI*2);ctx.fill();
+    } else {
+      // flame triangle
+      ctx.fillStyle=it.color;ctx.globalAlpha=0.85;
+      ctx.beginPath();ctx.moveTo(cx,cy-4.5);ctx.lineTo(cx-3,cy+3);ctx.lineTo(cx+3,cy+3);ctx.closePath();ctx.fill();
+    }
+    ctx.globalAlpha=0.8;ctx.fillStyle='rgba(185,198,225,.85)';
+    ctx.fillText(it.label,cx+10,cy+3);
+  });
+  ctx.restore();
+}
+
 function drawEndCard(active){
   if(!active.length||currentTick<maxRoundTick) return;
   ctx.save();
@@ -1261,13 +1317,15 @@ function drawRound(rc){
         }
         ctx.restore();
       }
-      drawPlayerDot(px,py,tc,vdx,vdy);
+      const teamColor=rc.team==='CT'?'#4d9eff':'#ff8c1a';
+      drawPlayerDot(px,py,tc,teamColor,vdx,vdy);
     }
   } else {
     const d=rc.deaths.find(dd=>dd.tick<=currentTick);
     if(d){
       const[px,py]=g2p(d.x,d.y,rc.map);
-      ctx.save();ctx.globalAlpha=0.45;drawX(px,py,7,tc,1.8);ctx.restore();
+      const teamColor=rc.team==='CT'?'#4d9eff':'#ff8c1a';
+      drawDeathMark(px,py,teamColor,tc,0.5);
     }
   }
 
@@ -1277,7 +1335,7 @@ function drawRound(rc){
   // ── Fires (molotov/incendiary flame effect) ──
   if(show.fires){
     ctx.save();
-    rc.fires.forEach(f=>{
+    rc.fires.filter(f=>f.weapon==='Incendiary Grenade'||f.weapon==='Molotov').forEach(f=>{
       const age=currentTick-f.tick;
       if(age<0||age>160) return;
       const[px,py]=g2p(f.x,f.y,rc.map);
@@ -1312,13 +1370,14 @@ function drawRound(rc){
     });
   }
 
-  // ── Death markers (player-colored with fade-in) ──
+  // ── Death markers (circle+X — distinct from kill X) ──
   if(show.deaths){
+    const teamColor=rc.team==='CT'?'#4d9eff':'#ff8c1a';
     rc.deaths.forEach(d=>{
       if(d.tick>currentTick) return;
       const[px,py]=g2p(d.x,d.y,rc.map);
       const wc=weaponColor(d.weapon);
-      ctx.save();ctx.globalAlpha=.72;drawX(px,py,6,wc,2.2);ctx.restore();
+      drawDeathMark(px,py,teamColor,wc,0.75);
     });
   }
 }
@@ -1328,37 +1387,45 @@ function drawLabel(rc){
   const raw=lerpPos(rc.positions,currentTick);if(!raw) return;
   const[px,py]=g2p(raw[0],raw[1],rc.map);
   const label=rc.playerName||'';
+  const teamColor=rc.team==='CT'?'#4d9eff':'#ff8c1a';
   ctx.save();
   ctx.font='600 10px "Inter",sans-serif';ctx.textAlign='center';
   const tw=ctx.measureText(label).width;
   const lx=px,ly=py-17;
-  ctx.fillStyle='rgba(5,7,14,.82)';
-  ctx.beginPath();ctx.roundRect(lx-tw/2-4,ly-8,tw+8,13,3);ctx.fill();
-  ctx.fillStyle=rc.color;ctx.globalAlpha=.95;ctx.fillText(label,lx,ly+2);
+  const PAD=4,BAR=2.5;
+  // Background
+  ctx.fillStyle='rgba(5,7,14,.86)';
+  ctx.beginPath();ctx.roundRect(lx-tw/2-PAD-BAR,ly-8,tw+PAD*2+BAR,13,3);ctx.fill();
+  // Team-color left bar
+  ctx.fillStyle=teamColor;ctx.globalAlpha=0.88;
+  ctx.beginPath();ctx.roundRect(lx-tw/2-PAD-BAR,ly-8,BAR,13,[3,0,0,3]);ctx.fill();
+  // Name
+  ctx.fillStyle=rc.color;ctx.globalAlpha=.95;ctx.fillText(label,lx+BAR/2,ly+2);
   ctx.restore();
 }
 
-function drawPlayerDot(px,py,tc,vdx,vdy){
+// tc=player identity color (PALETTE); teamColor=CT blue or T orange for ring
+function drawPlayerDot(px,py,tc,teamColor,vdx,vdy){
   ctx.save();
-  // Pulsing outer ring (animates during playback based on currentTick)
+  // Pulse ring (team-colored, subtle)
   const pulse=Math.sin(currentTick/14)*0.3+0.7;
   const pr=9+pulse*2.5;
-  ctx.strokeStyle=tc;ctx.lineWidth=1;ctx.globalAlpha=0.16*(1-pulse*0.4);
+  ctx.strokeStyle=teamColor;ctx.lineWidth=1;ctx.globalAlpha=0.16*(1-pulse*0.4);
   ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.stroke();
-  // Outer glow gradient
+  // Outer glow (identity color)
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
-  g.addColorStop(0,tc+'55');g.addColorStop(1,tc+'00');
-  ctx.globalAlpha=0.9;ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
-  // Ring
-  ctx.strokeStyle=tc;ctx.lineWidth=2.5;ctx.globalAlpha=.9;
+  g.addColorStop(0,tc+'44');g.addColorStop(1,tc+'00');
+  ctx.globalAlpha=0.75;ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
+  // Main ring — team color (CT=blue, T=orange), broadcast-standard side indicator
+  ctx.strokeStyle=teamColor;ctx.lineWidth=2.8;ctx.globalAlpha=.95;
   ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);ctx.stroke();
-  // Fill
-  ctx.fillStyle='rgba(8,12,22,.88)';
-  ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fill();
-  // Center dot
+  // Dark fill
+  ctx.fillStyle='rgba(6,9,18,.90)';ctx.globalAlpha=1;
+  ctx.beginPath();ctx.arc(px,py,5.8,0,Math.PI*2);ctx.fill();
+  // Center dot — player identity (PALETTE)
   ctx.fillStyle=tc;ctx.globalAlpha=1;
-  ctx.beginPath();ctx.arc(px,py,2.5,0,Math.PI*2);ctx.fill();
-  // Velocity arrow
+  ctx.beginPath();ctx.arc(px,py,2.8,0,Math.PI*2);ctx.fill();
+  // Velocity arrow (team color)
   if(vdx!==undefined&&vdy!==undefined){
     const spd=Math.sqrt(vdx*vdx+vdy*vdy);
     if(spd>1.2){
@@ -1366,7 +1433,7 @@ function drawPlayerDot(px,py,tc,vdx,vdy){
       const aLen=8+Math.min(10,spd*1.5);
       const tipX=px+nx*(9+aLen),tipY=py+ny*(9+aLen);
       const ang=Math.atan2(ny,nx);
-      ctx.globalAlpha=0.72;ctx.strokeStyle=tc;ctx.fillStyle=tc;
+      ctx.globalAlpha=0.72;ctx.strokeStyle=teamColor;ctx.fillStyle=teamColor;
       ctx.lineWidth=1.8;ctx.lineCap='round';
       ctx.beginPath();ctx.moveTo(px+nx*9,py+ny*9);ctx.lineTo(tipX,tipY);ctx.stroke();
       ctx.beginPath();
@@ -1376,6 +1443,23 @@ function drawPlayerDot(px,py,tc,vdx,vdy){
       ctx.closePath();ctx.fill();
     }
   }
+  ctx.restore();
+}
+
+// Circle-with-X death marker — visually distinct from kill X
+function drawDeathMark(x,y,ringColor,xColor,alpha){
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.strokeStyle=ringColor;ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.arc(x,y,7.5,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle=ringColor+'22';
+  ctx.beginPath();ctx.arc(x,y,7.5,0,Math.PI*2);ctx.fill();
+  const d=4;
+  ctx.strokeStyle='rgba(0,0,0,.7)';ctx.lineWidth=3.2;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x-d,y-d);ctx.lineTo(x+d,y+d);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+d,y-d);ctx.lineTo(x-d,y+d);ctx.stroke();
+  ctx.strokeStyle=xColor;ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.moveTo(x-d,y-d);ctx.lineTo(x+d,y+d);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+d,y-d);ctx.lineTo(x-d,y+d);ctx.stroke();
   ctx.restore();
 }
 
