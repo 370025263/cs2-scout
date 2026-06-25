@@ -432,7 +432,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v17 — Live round stats HUD, death float text, smoke pulse ring, empty state anim
+//  CS2 Scout v18 — Kill border flash, player motion smear, round scan line
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -492,6 +492,8 @@ let ringPool=[];
 // Camera zoom/pan state
 let camZoom=1,camX=0,camY=0;
 let _isPanning=false,_panStartX=0,_panStartY=0,_panCamX0=0,_panCamY0=0;
+// Kill border flash state
+let _borderFlash=null; // {color, born}
 
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
@@ -723,6 +725,7 @@ function redraw(){
           textPool.push({cx:kpx,cy:kpy,text:'KILL',color:rc.color,born:currentTick});
           linePool.push({x1:kpx,y1:kpy,x2:vx,y2:vy,color:rc.color,born:currentTick});
           ringPool.push({cx:vx,cy:vy,color:weaponColor(k.weapon),born:currentTick});
+          _borderFlash={color:rc.color,born:currentTick};
         }
       });
       rc.deaths.forEach(d=>{
@@ -750,6 +753,12 @@ function redraw(){
 
   // ── Cinematic edge vignette (screen space) ──
   drawVignette();
+
+  // ── Kill border flash (screen space) ──
+  drawKillBorderFlash();
+
+  // ── Round scan effect (screen space) ──
+  drawScanLine();
 
   // ── Mini-map inset (when zoomed) ──
   drawMiniMap();
@@ -948,6 +957,42 @@ function calcDist(positions){
     d+=Math.sqrt(dx*dx+dy*dy);
   }
   return Math.round(d);
+}
+
+function drawKillBorderFlash(){
+  if(!_borderFlash) return;
+  const age=currentTick-_borderFlash.born;
+  if(age>=20){_borderFlash=null;return;}
+  const frac=age/20;
+  const alpha=(1-frac)*0.38;
+  const r=parseInt(_borderFlash.color.slice(1,3),16);
+  const g2=parseInt(_borderFlash.color.slice(3,5),16);
+  const b=parseInt(_borderFlash.color.slice(5,7),16);
+  ctx.save();
+  // Outer border glow (radial from edges)
+  const grad=ctx.createRadialGradient(CW/2,CH/2,CW*.35,CW/2,CH/2,CW*.72);
+  grad.addColorStop(0,'rgba(0,0,0,0)');
+  grad.addColorStop(1,`rgba(${r},${g2},${b},${alpha*1.6})`);
+  ctx.fillStyle=grad;ctx.fillRect(0,0,CW,CH);
+  // Hard edge stroke
+  ctx.strokeStyle=`rgba(${r},${g2},${b},${alpha})`;
+  ctx.lineWidth=6;ctx.strokeRect(0,0,CW,CH);
+  ctx.restore();
+}
+
+function drawScanLine(){
+  if(!selectedPlayers.length||currentTick<=0||currentTick>=36) return;
+  const frac=currentTick/36;
+  const y=frac*CH;
+  ctx.save();
+  const g=ctx.createLinearGradient(0,y-28,0,y+28);
+  g.addColorStop(0,'rgba(77,158,255,0)');
+  g.addColorStop(0.42,`rgba(77,158,255,${0.28*(1-frac)})`);
+  g.addColorStop(0.5,`rgba(180,210,255,${0.4*(1-frac)})`);
+  g.addColorStop(0.58,`rgba(77,158,255,${0.28*(1-frac)})`);
+  g.addColorStop(1,'rgba(77,158,255,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,y-28,CW,56);
+  ctx.restore();
 }
 
 function drawRoundStatsHUD(active){
@@ -1164,6 +1209,20 @@ function drawRound(rc){
       const prev=lerpPos(rc.positions,currentTick-10);
       let vdx=0,vdy=0;
       if(prev){const[ppx,ppy]=g2p(prev[0],prev[1],rc.map);vdx=px-ppx;vdy=py-ppy;}
+      // Motion smear ghosts (drawn before main dot)
+      const spd=Math.sqrt(vdx*vdx+vdy*vdy);
+      if(spd>1.5){
+        ctx.save();
+        for(let lag=6;lag<=20;lag+=7){
+          const gRaw=lerpPos(rc.positions,currentTick-lag);
+          if(!gRaw) continue;
+          const[gx,gy]=g2p(gRaw[0],gRaw[1],rc.map);
+          const t=1-(lag/20);
+          ctx.fillStyle=tc;ctx.globalAlpha=t*0.18;
+          ctx.beginPath();ctx.arc(gx,gy,4.5*t,0,Math.PI*2);ctx.fill();
+        }
+        ctx.restore();
+      }
       drawPlayerDot(px,py,tc,vdx,vdy);
     }
   } else {
