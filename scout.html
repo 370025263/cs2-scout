@@ -223,6 +223,9 @@ body{
 }
 .ah-side{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;}
 .ah-lbl{font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--text-dim);}
+.ah-cnt{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace;min-width:14px;text-align:center;}
+.ah-cnt.ct{color:var(--ct);}
+.ah-cnt.t{color:var(--t);}
 .ah-dots{display:flex;gap:3px;align-items:center;}
 .ah-dot{width:7px;height:7px;border-radius:50%;transition:opacity .2s;}
 .ah-dot.dead{opacity:.18;}
@@ -326,9 +329,9 @@ body{
     <p>Click players from the roster to compare on map</p>
   </div>
   <div id="alive-hud">
-    <div class="ah-side"><span class="ah-lbl">CT</span><div class="ah-dots" id="ah-ct"></div></div>
-    <div style="width:1px;height:12px;background:var(--border2)"></div>
-    <div class="ah-side"><div class="ah-dots" id="ah-t"></div><span class="ah-lbl">T</span></div>
+    <div class="ah-side"><span class="ah-lbl">CT</span><span class="ah-cnt ct" id="ah-ct-cnt">—</span><div class="ah-dots" id="ah-ct"></div></div>
+    <div style="width:1px;height:14px;background:var(--border2)"></div>
+    <div class="ah-side"><div class="ah-dots" id="ah-t"></div><span class="ah-cnt t" id="ah-t-cnt">—</span><span class="ah-lbl">T</span></div>
   </div>
   <div id="hover-tip" style="display:none;position:absolute;pointer-events:none;z-index:20;
     background:rgba(7,9,15,.92);border:1px solid var(--border2);border-radius:6px;
@@ -802,6 +805,9 @@ function redraw(){
   drawMiniMap();
   drawNadeLegend();
 
+  // ── Broadcast-style scoreboard header (screen space) ──
+  drawBroadcastHeader(active);
+
   // ── Live round stats HUD (bottom of canvas, screen space) ──
   drawRoundStatsHUD(active);
 
@@ -1034,40 +1040,127 @@ function drawScanLine(){
   ctx.restore();
 }
 
+function drawBroadcastHeader(active){
+  if(!active.length) return;
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);
+  const HH=40;
+
+  // Count alive per side
+  let ctAlive=0,ctAll=[],tAll=[];
+  active.forEach(rc=>{
+    const dead=rc.deaths.some(d=>d.tick<=currentTick);
+    if(rc.team==='CT'){ctAll.push({rc,dead});if(!dead)ctAlive++;}
+    else{tAll.push({rc,dead});}
+  });
+  const tAlive=tAll.filter(p=>!p.dead).length;
+
+  // Gradient background panels
+  const PW=220;
+  const ctGrd=ctx.createLinearGradient(0,0,PW,0);
+  ctGrd.addColorStop(0,'rgba(30,70,140,.72)');ctGrd.addColorStop(1,'rgba(30,70,140,0)');
+  ctx.fillStyle=ctGrd;ctx.fillRect(0,0,PW,HH);
+
+  const tGrd=ctx.createLinearGradient(CW-PW,0,CW,0);
+  tGrd.addColorStop(0,'rgba(140,65,10,0)');tGrd.addColorStop(1,'rgba(160,80,10,.72)');
+  ctx.fillStyle=tGrd;ctx.fillRect(CW-PW,0,PW,HH);
+
+  // CT side: label + alive number + player dots
+  ctx.globalAlpha=1;
+  ctx.font='700 9px "Inter",sans-serif';ctx.textAlign='left';
+  ctx.fillStyle='rgba(120,170,255,.7)';ctx.fillText('CT',10,14);
+  ctx.font='700 22px "JetBrains Mono",monospace';
+  ctx.fillStyle=ctAlive>0?'#4d9eff':'rgba(77,158,255,.35)';
+  ctx.fillText(ctAlive,32,30);
+  ctAll.forEach((p,i)=>{
+    ctx.globalAlpha=p.dead?0.18:0.88;ctx.fillStyle=p.rc.color;
+    ctx.beginPath();ctx.arc(68+i*13,HH/2,4.5,0,Math.PI*2);ctx.fill();
+    if(!p.dead){
+      ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.arc(68+i*13,HH/2,4.5,0,Math.PI*2);ctx.stroke();
+    }
+  });
+
+  // T side: player dots (RTL) + alive number + label
+  tAll.forEach((p,i)=>{
+    ctx.globalAlpha=p.dead?0.18:0.88;ctx.fillStyle=p.rc.color;
+    ctx.beginPath();ctx.arc(CW-68-i*13,HH/2,4.5,0,Math.PI*2);ctx.fill();
+    if(!p.dead){
+      ctx.strokeStyle='rgba(255,255,255,.25)';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.arc(CW-68-i*13,HH/2,4.5,0,Math.PI*2);ctx.stroke();
+    }
+  });
+  ctx.globalAlpha=1;
+  ctx.font='700 22px "JetBrains Mono",monospace';ctx.textAlign='right';
+  ctx.fillStyle=tAlive>0?'#ff8c1a':'rgba(255,140,26,.35)';
+  ctx.fillText(tAlive,CW-32,30);
+  ctx.font='700 9px "Inter",sans-serif';ctx.fillStyle='rgba(255,165,80,.7)';
+  ctx.fillText('T',CW-10,14);
+
+  // Center pill: round number
+  const rNums=[...new Set(active.map(rc=>rc.roundIdx))];
+  const rLabel=rNums.length===1?`RND ${rNums[0]}`:'ALL';
+  const pillW=74;
+  ctx.globalAlpha=0.92;
+  ctx.fillStyle='rgba(5,7,14,.82)';
+  ctx.beginPath();ctx.roundRect(CW/2-pillW/2,6,pillW,HH-12,4);ctx.fill();
+  ctx.strokeStyle='rgba(80,100,150,.5)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(CW/2-pillW/2,6,pillW,HH-12,4);ctx.stroke();
+  ctx.globalAlpha=0.55;ctx.fillStyle='rgba(165,180,220,.7)';
+  ctx.font='600 7px "Inter",sans-serif';ctx.textAlign='center';
+  ctx.fillText('ROUND',CW/2,18);
+  ctx.globalAlpha=1;ctx.fillStyle='#d4dcf0';
+  ctx.font='700 13px "JetBrains Mono",monospace';
+  ctx.fillText(rLabel,CW/2,33);
+
+  // Bottom fade separator
+  const sepGrd=ctx.createLinearGradient(0,HH,0,HH+12);
+  sepGrd.addColorStop(0,'rgba(0,0,0,.22)');sepGrd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.globalAlpha=1;ctx.fillStyle=sepGrd;ctx.fillRect(0,HH,CW,12);
+
+  ctx.restore();
+}
+
 function drawRoundStatsHUD(active){
   if(!active.length||currentTick>=maxRoundTick) return;
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
   const N=active.length;
-  const EW=160,EH=22,GAP=5;
+  const EW=162,EH=24,GAP=5;
   const TW=N*(EW+GAP)-GAP;
-  const sx=(CW-TW)/2,sy=CH-48;
+  const sx=(CW-TW)/2,sy=CH-50;
   active.forEach((rc,i)=>{
     const ex=sx+i*(EW+GAP);
     const isDead=rc.deaths.some(d=>d.tick<=currentTick);
     const K=rc.kills.filter(k=>k.tick<=currentTick).length;
     const D=rc.deaths.filter(d=>d.tick<=currentTick).length;
-    const a=isDead?.38:.82;
+    const teamColor=rc.team==='CT'?'#4d9eff':'#ff8c1a';
+    const a=isDead?.35:.85;
     ctx.globalAlpha=a;
     // Panel
-    ctx.fillStyle='rgba(4,6,12,.88)';
-    ctx.strokeStyle=isDead?'rgba(255,208,96,.18)':rc.color+'44';ctx.lineWidth=1;
+    ctx.fillStyle='rgba(4,6,12,.90)';
+    ctx.strokeStyle=isDead?'rgba(255,208,96,.15)':teamColor+'33';ctx.lineWidth=1;
     ctx.beginPath();ctx.roundRect(ex,sy,EW,EH,4);ctx.fill();ctx.stroke();
-    // Left bar
-    ctx.fillStyle=isDead?'#ffd060':rc.color;ctx.globalAlpha=isDead?.22:a;
+    // Team-color left bar
+    const barColor=isDead?'#ffd060':teamColor;
+    ctx.fillStyle=barColor;ctx.globalAlpha=isDead?.18:a*0.9;
     ctx.beginPath();ctx.roundRect(ex,sy,3,EH,[4,0,0,4]);ctx.fill();
     ctx.globalAlpha=1;
+    // Player identity dot
+    ctx.fillStyle=rc.color;ctx.globalAlpha=isDead?.25:.9;
+    ctx.beginPath();ctx.arc(ex+12,sy+EH/2,3.5,0,Math.PI*2);ctx.fill();
     // Name
     const nm=rc.playerName.length>10?rc.playerName.slice(0,9)+'…':rc.playerName;
-    ctx.fillStyle=isDead?'rgba(110,120,145,.4)':rc.color;
+    ctx.fillStyle=isDead?'rgba(100,110,135,.5)':rc.color;
     ctx.font='600 9px "Inter",sans-serif';ctx.textAlign='left';
-    ctx.globalAlpha=isDead?.4:.9;
-    if(isDead){ctx.fillText('✝',ex+7,sy+14);ctx.fillText(nm,ex+18,sy+14);}
-    else ctx.fillText(nm,ex+8,sy+14);
-    // K/D stats
-    ctx.fillStyle=isDead?'rgba(150,160,180,.3)':'rgba(185,195,225,.85)';
+    ctx.globalAlpha=isDead?.35:.9;
+    if(isDead){ctx.fillStyle='rgba(255,208,96,.5)';ctx.fillText('✝',ex+22,sy+15);}
+    ctx.fillStyle=isDead?'rgba(100,110,135,.5)':rc.color;
+    ctx.fillText(nm,isDead?ex+32:ex+22,sy+15);
+    // K/D
+    ctx.fillStyle=isDead?'rgba(120,130,150,.3)':'rgba(185,198,230,.9)';
     ctx.font='600 9px "JetBrains Mono",monospace';ctx.textAlign='right';
-    ctx.fillText(`${K}K ${D}D`,ex+EW-7,sy+14);
+    ctx.globalAlpha=isDead?.25:.9;
+    ctx.fillText(`${K}K ${D}D`,ex+EW-7,sy+15);
   });
   ctx.globalAlpha=1;ctx.restore();
 }
@@ -1872,16 +1965,19 @@ function updateKillFeed(){
 function updateAliveHUD(active){
   const el=document.getElementById('alive-hud');
   if(!active.length){el.style.display='none';return;}
-  // Group alive/dead by team
   const ct=[],t_=[];
   active.forEach(rc=>{
     const dead=rc.deaths.some(d=>d.tick<=currentTick);
     (rc.team==='CT'?ct:t_).push({color:rc.color,dead});
   });
   if(!ct.length&&!t_.length){el.style.display='none';return;}
-  const mkDots=(arr,col)=>arr.map(p=>`<div class="ah-dot${p.dead?' dead':''}" style="background:${p.color}"></div>`).join('');
-  document.getElementById('ah-ct').innerHTML=mkDots(ct,'var(--ct)');
-  document.getElementById('ah-t').innerHTML=mkDots(t_,'var(--t)');
+  const mkDots=arr=>arr.map(p=>`<div class="ah-dot${p.dead?' dead':''}" style="background:${p.color}"></div>`).join('');
+  document.getElementById('ah-ct').innerHTML=mkDots(ct);
+  document.getElementById('ah-t').innerHTML=mkDots(t_);
+  const ctAlive=ct.filter(p=>!p.dead).length;
+  const tAlive=t_.filter(p=>!p.dead).length;
+  document.getElementById('ah-ct-cnt').textContent=ct.length?ctAlive:'—';
+  document.getElementById('ah-t-cnt').textContent=t_.length?tAlive:'—';
   el.style.display='flex';
 }
 
