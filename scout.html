@@ -181,16 +181,21 @@ body{
 #clock-panel .ck-val.warn{color:var(--gold);}
 #clock-panel .ck-val.crit{color:var(--kill);}
 
-#killfeed{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:3px;z-index:10;pointer-events:none;max-width:230px;}
+#killfeed{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:3px;z-index:10;pointer-events:none;max-width:220px;}
 .kf-entry{
-  display:flex;align-items:center;gap:4px;
-  background:rgba(7,9,15,.88);backdrop-filter:blur(12px);
-  border:1px solid var(--border2);border-radius:4px;
-  padding:3px 8px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;
+  display:flex;align-items:center;gap:5px;
+  background:rgba(5,7,14,.92);backdrop-filter:blur(14px);
+  border:1px solid rgba(30,37,64,.8);border-radius:4px;
+  padding:4px 8px 4px 10px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;
   animation:kfIn .18s var(--ease) both;
+  position:relative;overflow:hidden;
 }
-.kf-entry .kfa{color:var(--ct);} .kf-entry .kfw{color:var(--text-dim);font-size:9px;} .kf-entry .kfv{color:var(--kill);}
-.kf-entry.death .kfa{color:var(--kill);} .kf-entry.death .kfv{color:var(--text-mid);}
+.kf-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:4px 0 0 4px;}
+.kf-name{font-weight:700;font-size:10px;}
+.kf-wpn{font-size:9px;opacity:.8;}
+.kf-age{font-size:8px;color:var(--text-dim);margin-left:auto;opacity:.65;}
+.kf-ico{font-size:9px;color:var(--text-dim);}
+.kf-entry.death{border-left-color:rgba(255,208,96,.3);}
 
 #empty-state{
   position:absolute;inset:0;display:flex;flex-direction:column;
@@ -328,7 +333,7 @@ body{
     transition:background .15s,box-shadow .15s;"
     onmouseenter="this.style.background='rgba(255,60,90,.22)';this.style.boxShadow='0 0 18px rgba(255,60,90,.3)'"
     onmouseleave="this.style.background='rgba(255,60,90,.12)';this.style.boxShadow=''"
-    onclick="currentTick=0;_prevTick=-1;flashPool=[];textPool=[];linePool=[];document.getElementById('replay-btn').style.display='none';togglePlay();">
+    onclick="currentTick=0;_prevTick=-1;flashPool=[];textPool=[];linePool=[];ringPool=[];document.getElementById('replay-btn').style.display='none';togglePlay();">
     ↺ Replay Round
   </button>
 </div>
@@ -354,13 +359,17 @@ body{
 
 <div id="timeline">
   <span class="tl-time" id="tl-cur">0:00</span>
-  <div class="tl-wrap">
+  <div class="tl-wrap" style="position:relative">
     <div id="tl-track"></div>
     <div id="tl-phase"></div>
     <div id="tl-fill"></div>
     <div id="tl-events"></div>
     <div id="tl-thumb"></div>
     <input type="range" id="tl-slider" min="0" max="180" value="0" step="1">
+    <div id="tl-tip" style="display:none;position:absolute;bottom:18px;pointer-events:none;
+      background:rgba(5,7,14,.95);border:1px solid var(--border2);border-radius:4px;
+      padding:2px 6px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--bright);
+      transform:translateX(-50%);white-space:nowrap;z-index:20;"></div>
   </div>
   <span class="tl-time" id="tl-max">0:00</span>
   <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Space">▶</button>
@@ -421,7 +430,7 @@ body{
 <script>
 'use strict';
 // ══════════════════════════════════════════════════════
-//  CS2 Scout v15 — Trail glow, pulsing player dot, cinematic vignette, broadcast zone labels
+//  CS2 Scout v16 — Expanding kill rings, kill feed redesign, timeline hover preview
 //  New: per-segment trail ribbon (alpha+width gradient), map zone text labels,
 //       auto-pause 550ms on kill during playback, bombsite rings for mirage/inferno/ancient
 // ══════════════════════════════════════════════════════
@@ -476,6 +485,8 @@ let flashPool=[];
 let textPool=[];
 // Kill engagement beams: [{x1,y1,x2,y2,color,born}]
 let linePool=[];
+// Expanding kill rings at victim positions: [{cx,cy,color,born}]
+let ringPool=[];
 // Camera zoom/pan state
 let camZoom=1,camX=0,camY=0;
 let _isPanning=false,_panStartX=0,_panStartY=0,_panCamX0=0,_panCamY0=0;
@@ -512,7 +523,7 @@ document.addEventListener('keydown',e=>{
   // 1-9: jump to 10%-90% of round
   if(/^Digit[1-9]$/.test(e.code)&&!e.ctrlKey&&!e.altKey&&maxRoundTick){
     currentTick=Math.round(maxRoundTick*parseInt(e.key)/10);
-    _prevTick=currentTick;flashPool=[];textPool=[];linePool=[];redraw();
+    _prevTick=currentTick;flashPool=[];textPool=[];linePool=[];ringPool=[];redraw();
   }
   // 0: reset camera zoom
   if(e.code==='Digit0'&&!e.ctrlKey&&!e.altKey){camZoom=1;camX=0;camY=0;canvas.style.cursor='crosshair';redraw();}
@@ -625,7 +636,7 @@ function jumpKill(dir){
   let target;
   if(dir>0) target=ticks.find(t=>t>currentTick+5);
   else       target=[...ticks].reverse().find(t=>t<currentTick-5);
-  if(target!=null){currentTick=Math.max(0,target-16);_prevTick=currentTick;flashPool=[];textPool=[];linePool=[];redraw();}
+  if(target!=null){currentTick=Math.max(0,target-16);_prevTick=currentTick;flashPool=[];textPool=[];linePool=[];ringPool=[];redraw();}
 }
 
 // ══════════════════════════════════════════════════════
@@ -709,6 +720,7 @@ function redraw(){
           flashPool.push({cx:kpx,cy:kpy,color:rc.color,born:currentTick,type:'shooter'});
           textPool.push({cx:kpx,cy:kpy,text:'KILL',color:rc.color,born:currentTick});
           linePool.push({x1:kpx,y1:kpy,x2:vx,y2:vy,color:rc.color,born:currentTick});
+          ringPool.push({cx:vx,cy:vy,color:weaponColor(k.weapon),born:currentTick});
         }
       });
       rc.deaths.forEach(d=>{
@@ -878,6 +890,24 @@ function drawBroadcastFX(){
     ctx.strokeStyle='rgba(0,0,0,.85)'; ctx.lineWidth=3;
     ctx.strokeText(t.text,t.cx,y);
     ctx.fillStyle=t.color; ctx.fillText(t.text,t.cx,y);
+    ctx.restore();
+  });
+
+  // Draw expanding kill rings at victim positions
+  const RING_DUR=38;
+  ringPool=ringPool.filter(r=>currentTick-r.born<RING_DUR);
+  ringPool.forEach(r=>{
+    const age=currentTick-r.born, frac=age/RING_DUR;
+    const rad=5+frac*42;
+    const alpha=Math.max(0,(1-frac)*.72);
+    const lw=Math.max(0.4,2.2*(1-frac));
+    ctx.save();
+    ctx.strokeStyle=r.color;ctx.lineWidth=lw;ctx.globalAlpha=alpha;
+    ctx.beginPath();ctx.arc(r.cx,r.cy,rad,0,Math.PI*2);ctx.stroke();
+    // Secondary inner ring (half-speed)
+    const rad2=3+frac*0.5*42;
+    ctx.globalAlpha=alpha*0.4;ctx.lineWidth=lw*0.6;
+    ctx.beginPath();ctx.arc(r.cx,r.cy,rad2,0,Math.PI*2);ctx.stroke();
     ctx.restore();
   });
 }
@@ -1413,7 +1443,7 @@ function buildTimelineEvents(){
         d.title=`Kill • ${k.weapon||'?'} • ${sp.player.name}`;
         d.onmouseenter=()=>d.style.transform='translate(-50%,-50%) scale(2)';
         d.onmouseleave=()=>d.style.transform='translate(-50%,-50%) scale(1)';
-        d.onclick=(e)=>{e.stopPropagation();_prevTick=Math.max(0,k.tick-16);currentTick=_prevTick;flashPool=[];textPool=[];redraw();};
+        d.onclick=(e)=>{e.stopPropagation();_prevTick=Math.max(0,k.tick-16);currentTick=_prevTick;flashPool=[];textPool=[];linePool=[];ringPool=[];redraw();};
         el.appendChild(d);
       });
       rc.deaths.forEach(d=>{
@@ -1444,14 +1474,29 @@ function rebuildKillFeed(){
 function updateKillFeed(){
   const el=document.getElementById('killfeed');el.innerHTML='';
   if(!_kfEvents.length) return;
-  const WINDOW=100;
+  const WINDOW=120;
   const vis=_kfEvents.filter(e=>e.tick>=currentTick-WINDOW&&e.tick<=currentTick);
   vis.slice(-5).reverse().forEach(e=>{
     const div=document.createElement('div');
     div.className='kf-entry'+(e.type==='death'?' death':'');
-    const nameSpan=`<span class="kfa" style="color:${e.color}">${e.name}</span>`;
-    if(e.type==='kill') div.innerHTML=`${nameSpan}<span class="kfw"> ${e.weapon||'?'} ✕</span>`;
-    else div.innerHTML=`<span class="kfa" style="color:#ffd060">✝</span><span class="kfw"> ${e.weapon||'?'} </span>${nameSpan}`;
+    const wc=weaponColor(e.weapon||'');
+    const ageTicks=currentTick-e.tick;
+    const ageSec=Math.round(ageTicks/16);
+    const ageStr=ageSec<2?'now':`${ageSec}s`;
+    const bar=`<div class="kf-bar" style="background:${e.type==='kill'?e.color:'#ffd060'}"></div>`;
+    if(e.type==='kill'){
+      div.innerHTML=`${bar}
+        <span class="kf-name" style="color:${e.color}">${e.name}</span>
+        <span class="kf-ico">✕</span>
+        <span class="kf-wpn" style="color:${wc}">${e.weapon||'?'}</span>
+        <span class="kf-age">${ageStr}</span>`;
+    } else {
+      div.innerHTML=`${bar}
+        <span class="kf-ico" style="color:#ffd060">✝</span>
+        <span class="kf-wpn" style="color:${wc}">${e.weapon||'?'}</span>
+        <span class="kf-name" style="color:var(--text-mid);margin-left:2px">${e.name}</span>
+        <span class="kf-age">${ageStr}</span>`;
+    }
     el.appendChild(div);
   });
 }
@@ -1555,9 +1600,26 @@ function updateClock(){
 
 document.getElementById('tl-slider').oninput=function(){
   _prevTick=parseInt(this.value);currentTick=_prevTick;
-  flashPool=[];textPool=[];linePool=[];
+  flashPool=[];textPool=[];linePool=[];ringPool=[];
   redraw();
 };
+
+// Timeline hover — show timestamp preview
+(function(){
+  const wrap=document.querySelector('.tl-wrap');
+  const tip=document.getElementById('tl-tip');
+  const fmt=t=>{const s=Math.floor(t/16);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;};
+  wrap.addEventListener('mousemove',e=>{
+    if(!maxRoundTick){tip.style.display='none';return;}
+    const rect=wrap.getBoundingClientRect();
+    const pct=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+    const tick=Math.round(pct*maxRoundTick);
+    tip.textContent=fmt(tick);
+    tip.style.left=(e.clientX-rect.left)+'px';
+    tip.style.display='block';
+  });
+  wrap.addEventListener('mouseleave',()=>tip.style.display='none');
+})();
 
 function togglePlay(){
   if(!selectedPlayers.length) return;
