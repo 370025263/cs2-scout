@@ -132,6 +132,12 @@ body{
 .score-chip.ct{background:rgba(77,158,255,.14);color:var(--ct);}
 .score-chip.t {background:rgba(255,140,26,.14);color:var(--t);}
 .score-sep{font-size:10px;font-weight:700;color:var(--text-dim);}
+.tf-pills{display:flex;gap:3px;align-items:center;}
+.tf-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:inherit;letter-spacing:.04em;transition:all .15s;}
+.tf-pill:hover{border-color:var(--border);color:var(--text);}
+.tf-pill.active{background:var(--tpc,var(--surface));border-color:var(--tpc,var(--border));color:#fff;box-shadow:0 0 8px color-mix(in srgb,var(--tpc,#fff) 30%,transparent);}
+.tf-pill[data-val="CT"].active{background:rgba(77,158,255,.25);border-color:var(--ct);color:var(--ct);}
+.tf-pill[data-val="T"].active{background:rgba(255,140,26,.25);border-color:var(--t);color:var(--t);}
 
 /* MAP ZONE */
 #map-zone{
@@ -345,10 +351,12 @@ body{
   <div class="vsep"></div>
   <span class="fl">Map</span>
   <select id="mapFilter" onchange="onFilter()"><option value="">All Maps</option></select>
-  <span class="fl">Team</span>
-  <select id="teamFilter" onchange="onFilter()">
-    <option value="">All</option><option value="CT">CT</option><option value="T">T</option>
-  </select>
+  <span class="fl">Side</span>
+  <div id="teamFilter" class="tf-pills">
+    <button class="tf-pill active" data-val="">All</button>
+    <button class="tf-pill" data-val="CT">CT</button>
+    <button class="tf-pill" data-val="T">T</button>
+  </div>
   <span class="fl">Round</span>
   <select id="roundFilter" onchange="onFilter()"><option value="">All</option></select>
   <span class="chip" id="roundCount">—</span>
@@ -524,6 +532,14 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyT') tgl('trails');
   if(e.code==='KeyL') tgl('labels');
   if(e.code==='KeyN') tgl('nades');
+  // C: cycle team side filter (All → CT → T → All)
+  if(e.code==='KeyC'){
+    const pills=[...document.getElementById('teamFilter').querySelectorAll('.tf-pill')];
+    const cur=pills.findIndex(p=>p.classList.contains('active'));
+    pills.forEach(p=>p.classList.remove('active'));
+    pills[(cur+1)%pills.length].classList.add('active');
+    onFilter();
+  }
   // 1-9: jump to 10%-90% of round
   if(/^Digit[1-9]$/.test(e.code)&&!e.ctrlKey&&!e.altKey&&maxRoundTick){
     currentTick=Math.round(maxRoundTick*parseInt(e.key)/10);
@@ -669,7 +685,8 @@ function jumpKill(dir){
 // ══════════════════════════════════════════════════════
 function getAllRounds(){
   const fm=document.getElementById('mapFilter').value;
-  const ft=document.getElementById('teamFilter').value;
+  const _tfA=document.getElementById('teamFilter').querySelector('.tf-pill.active');
+  const ft=_tfA?_tfA.dataset.val:'';
   const fr=document.getElementById('roundFilter').value;
   return selectedPlayers.flatMap(sp=>
     sp.rounds.filter(rc=>
@@ -1203,8 +1220,8 @@ function drawRound(rc){
         ctx.globalAlpha=alpha; ctx.strokeStyle=tc; ctx.lineWidth=lw; ctx.lineCap='round';
         ctx.beginPath(); ctx.moveTo(pts[i-1][0],pts[i-1][1]);
         if(i<N-1){
-          const cp1x=pts[i][0]+(pts[i+1][0]-pts[i-1][0])*0.18;
-          const cp1y=pts[i][1]+(pts[i+1][1]-pts[i-1][1])*0.18;
+          const cp1x=pts[i][0]+(pts[i+1][0]-pts[i-1][0])*0.25;
+          const cp1y=pts[i][1]+(pts[i+1][1]-pts[i-1][1])*0.25;
           ctx.quadraticCurveTo(cp1x,cp1y,pts[i][0],pts[i][1]);
         } else {
           ctx.lineTo(pts[i][0],pts[i][1]);
@@ -1324,9 +1341,9 @@ function drawLabel(rc){
 function drawPlayerDot(px,py,tc,vdx,vdy){
   ctx.save();
   // Pulsing outer ring (animates during playback based on currentTick)
-  const pulse=Math.sin(currentTick/7)*0.5+0.5;
-  const pr=10+pulse*6;
-  ctx.strokeStyle=tc;ctx.lineWidth=1.2;ctx.globalAlpha=0.25*(1-pulse*0.6);
+  const pulse=Math.sin(currentTick/14)*0.3+0.7;
+  const pr=9+pulse*2.5;
+  ctx.strokeStyle=tc;ctx.lineWidth=1;ctx.globalAlpha=0.16*(1-pulse*0.4);
   ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.stroke();
   // Outer glow gradient
   const g=ctx.createRadialGradient(px,py,0,px,py,16);
@@ -1375,60 +1392,130 @@ function drawX(x,y,r,color,lw){
   ctx.restore();
 }
 
-// ── Nade helpers ──
-function getTraj(nade,lx,ly,map){
-  const t=nade.trajectory||[];
-  if(t.length>=2) return t.map(pt=>({tick:pt.tick,cx:g2p(pt.x,pt.y,map)[0],cy:g2p(pt.x,pt.y,map)[1]}));
-  const[tx,ty]=g2p(nade.throw_x,nade.throw_y,map);
-  const[ex,ey]=lx!=null?g2p(lx,ly,map):[tx+40,ty-40];
-  return Array.from({length:9},(_,i)=>{
-    const f=i/8;
-    return{tick:nade.tick+Math.round(f*26),cx:tx+(ex-tx)*f,cy:ty+(ey-ty)*f-20*Math.sin(Math.PI*f)};
-  });
+// ══════════════════════════════════════════════════════
+//  NADE ANIMATION SYSTEM v20
+// ══════════════════════════════════════════════════════
+
+// Parabolic arc position (world coords → canvas position already handled by caller)
+function _arcPos(tx,ty,lx,ly,t){
+  return[tx+(lx-tx)*t, ty+(ly-ty)*t - 62*Math.sin(Math.PI*t)];
 }
 
-function drawNadeArc(throwX,throwY,landX,landY,map,color){
-  if(landX==null||landY==null) return;
-  const[tx,ty]=g2p(throwX,throwY,map);
-  const[lx,ly]=g2p(landX,landY,map);
-  const mx=(tx+lx)/2,my=(ty+ly)/2-22;
-  ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([3,4]);
+// Estimate throw landing using player velocity at throw tick
+function _estimateLand(throwX,throwY,rc,throwTick,dist){
+  const raw=lerpPos(rc.positions,throwTick);
+  const raw2=lerpPos(rc.positions,throwTick-8);
+  let ex=throwX,ey=throwY;
+  if(raw&&raw2){
+    const vx=raw[0]-raw2[0],vy=raw[1]-raw2[1];
+    const len=Math.sqrt(vx*vx+vy*vy);
+    if(len>0.4){ex=throwX+(vx/len)*dist;ey=throwY+(vy/len)*dist;}
+    else{ex=throwX;ey=throwY-dist*0.6;}
+  }
+  return g2p(ex,ey,rc.map);
+}
+
+// Draw the full parabolic arc guide line
+function _drawArcGuide(tx,ty,lx,ly,color,alpha){
+  const mx=(tx+lx)/2,my=(ty+ly)/2-62;
+  ctx.save();
+  ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.setLineDash([4,5]);
   ctx.beginPath();ctx.moveTo(tx,ty);ctx.quadraticCurveTo(mx,my,lx,ly);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
+  ctx.setLineDash([]);
+  // Throw origin marker
+  ctx.globalAlpha=alpha*0.8;ctx.fillStyle=color;
+  ctx.beginPath();ctx.arc(tx,ty,3,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+// Draw animated projectile with glow + particle trail
+function _drawProjectile(tx,ty,lx,ly,t,color,sz){
+  const[cx,cy]=_arcPos(tx,ty,lx,ly,t);
+  ctx.save();
+  // Trailing sparks
+  for(let lag=1;lag<=5;lag++){
+    const lt=Math.max(0,t-lag*0.06);
+    const[lc,lcy]=_arcPos(tx,ty,lx,ly,lt);
+    ctx.globalAlpha=(1-lag/6)*0.55;ctx.fillStyle=color;
+    ctx.beginPath();ctx.arc(lc,lcy,sz*(1-lag/6),0,Math.PI*2);ctx.fill();
+  }
+  // Glow halo
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,sz*3);
+  g.addColorStop(0,color+'cc');g.addColorStop(1,color+'00');
+  ctx.globalAlpha=0.9;ctx.fillStyle=g;
+  ctx.beginPath();ctx.arc(cx,cy,sz*3,0,Math.PI*2);ctx.fill();
+  // Bright white core
+  ctx.globalAlpha=1;ctx.fillStyle='#ffffff';
+  ctx.beginPath();ctx.arc(cx,cy,sz*0.55,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  return[cx,cy];
 }
 
 function drawSmokes(rc){
   rc.smokes.forEach(s=>{
-    const age=currentTick-s.tick;if(age<0||age>576) return;
-    const traj=getTraj(s,s.land_x,s.land_y,rc.map),last=traj[traj.length-1];
-    const FLIGHT=26,DUR=500;
+    const age=currentTick-s.tick;if(age<0||age>620) return;
+    const[tx,ty]=g2p(s.throw_x,s.throw_y,rc.map);
+    const[lx,ly]=g2p(s.land_x,s.land_y,rc.map);
+    const FLIGHT=28,DEPLOY=576;
     ctx.save();
+
     if(age<=FLIGHT){
-      const t=age/FLIGHT,idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
-      const f=t*(traj.length-1)-idx;
-      const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*f;
-      const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*f;
-      if(IMG.smoke.complete&&IMG.smoke.naturalWidth>0){ctx.globalAlpha=.7;ctx.drawImage(IMG.smoke,cx-10,cy-10,20,20);}
-      else{ctx.fillStyle='#8ab4c8';ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fill();}
+      const t=age/FLIGHT;
+      _drawArcGuide(tx,ty,lx,ly,'#7fc4e0',0.45);
+      // Landing zone circle
+      ctx.globalAlpha=0.32;ctx.strokeStyle='#7fc4e0';ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(lx,ly,10,0,Math.PI*2);ctx.stroke();
+      // Landing X cross
+      ctx.globalAlpha=0.45;ctx.strokeStyle='#7fc4e0';ctx.lineWidth=1.2;
+      const XS=5;
+      ctx.beginPath();ctx.moveTo(lx-XS,ly-XS);ctx.lineTo(lx+XS,ly+XS);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(lx+XS,ly-XS);ctx.lineTo(lx-XS,ly+XS);ctx.stroke();
+      _drawProjectile(tx,ty,lx,ly,t,'#7fc4e0',4.5);
     } else {
-      const sa=age-FLIGHT;if(sa>DUR){ctx.restore();return;}
-      drawNadeArc(s.throw_x,s.throw_y,s.land_x,s.land_y,rc.map,'#8ab4c8');
-      const fade=sa<40?sa/40:sa>DUR-60?(DUR-sa)/60:1;
-      const expand=18+sa*.044;
-      for(let w=0;w<3;w++){
-        const r=expand-w*4;if(r<2) continue;
-        ctx.strokeStyle=`rgba(170,195,225,${.18*fade*(1-w*.3)})`;ctx.lineWidth=1.1;
-        ctx.beginPath();ctx.arc(last.cx,last.cy,r,0,Math.PI*2);ctx.stroke();
+      const sa=age-FLIGHT;if(sa>DEPLOY){ctx.restore();return;}
+      const fadeIn=Math.min(1,sa/38);
+      const fadeOut=sa>DEPLOY-90?(DEPLOY-sa)/90:1;
+      const fade=Math.min(fadeIn,fadeOut);
+      const expand=Math.min(52,7+Math.sqrt(sa)*3.1);
+
+      // Impact burst ring (early)
+      if(sa<28){
+        const bFade=1-sa/28;
+        ctx.strokeStyle=`rgba(210,235,255,${bFade*0.95})`;ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(lx,ly,sa*2.6,0,Math.PI*2);ctx.stroke();
       }
-      ctx.fillStyle=`rgba(120,155,195,${.12*fade})`;
-      ctx.beginPath();ctx.arc(last.cx,last.cy,expand,0,Math.PI*2);ctx.fill();
-      if(IMG.smoke.complete){ctx.globalAlpha=.5*fade;ctx.drawImage(IMG.smoke,last.cx-14,last.cy-14,28,28);}
-      // Pulsing edge ring while smoke is fully active
-      if(sa>40&&sa<DUR-30){
-        const pulse=Math.sin(currentTick/11)*0.35+0.65;
-        ctx.strokeStyle=`rgba(110,170,215,${fade*0.28*pulse})`;
-        ctx.lineWidth=2;ctx.globalAlpha=1;
-        ctx.beginPath();ctx.arc(last.cx,last.cy,expand+6*pulse,0,Math.PI*2);ctx.stroke();
+
+      // Multi-layer organic smoke cloud
+      for(let layer=0;layer<5;layer++){
+        const lr=expand*(0.55+layer*0.14);
+        const la=Math.max(0,fade*(0.26-layer*0.044));
+        const wobble=Math.sin(currentTick/9+layer*1.4)*(layer%2===0?1.8:-1.4);
+        ctx.strokeStyle=`rgba(155,190,220,${la})`;
+        ctx.lineWidth=3.8-layer*0.6;
+        ctx.beginPath();ctx.arc(lx+wobble,ly,lr,0,Math.PI*2);ctx.stroke();
+      }
+
+      // Soft inner fill
+      const grd=ctx.createRadialGradient(lx,ly,0,lx,ly,expand);
+      grd.addColorStop(0,`rgba(105,148,195,${fade*0.22})`);
+      grd.addColorStop(0.6,`rgba(90,135,180,${fade*0.12})`);
+      grd.addColorStop(1,'rgba(70,115,160,0)');
+      ctx.globalAlpha=1;ctx.fillStyle=grd;
+      ctx.beginPath();ctx.arc(lx,ly,expand,0,Math.PI*2);ctx.fill();
+
+      // Pulsing outer edge ring
+      if(sa>38&&sa<DEPLOY-30){
+        const pulse=Math.sin(currentTick/9)*0.42+0.58;
+        ctx.strokeStyle=`rgba(120,175,215,${fade*0.35*pulse})`;
+        ctx.lineWidth=2.2;
+        ctx.beginPath();ctx.arc(lx,ly,expand+6*pulse,0,Math.PI*2);ctx.stroke();
+      }
+
+      // Label
+      if(expand>22&&fade>0.45){
+        ctx.globalAlpha=fade*0.6;ctx.fillStyle='#9bc8e0';
+        ctx.font='bold 7px "Inter",sans-serif';ctx.textAlign='center';
+        ctx.fillText('SMOKE',lx,ly+expand+12);
       }
     }
     ctx.restore();
@@ -1437,20 +1524,47 @@ function drawSmokes(rc){
 
 function drawFlashes(rc){
   rc.flashes.forEach(f=>{
-    const age=currentTick-f.tick;if(age<0||age>35) return;
-    const traj=getTraj(f,null,null,rc.map),last=traj[traj.length-1],FL=14;
+    const age=currentTick-f.tick;if(age<0||age>68) return;
+    const[tx,ty]=g2p(f.throw_x,f.throw_y,rc.map);
+    const[lx,ly]=_estimateLand(f.throw_x,f.throw_y,rc,f.tick,260);
+    const FLIGHT=18,BURST=50;
     ctx.save();
-    if(age<=FL){
-      const t=age/FL,idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
-      const fr=t*(traj.length-1)-idx;
-      const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*fr;
-      const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*fr;
-      if(IMG.flashbang.complete&&IMG.flashbang.naturalWidth>0){ctx.globalAlpha=.7;ctx.drawImage(IMG.flashbang,cx-8,cy-8,16,16);}
-      else{ctx.fillStyle='#fffbe0';ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();}
+
+    if(age<=FLIGHT){
+      const t=age/FLIGHT;
+      _drawArcGuide(tx,ty,lx,ly,'#ffe060',0.38);
+      _drawProjectile(tx,ty,lx,ly,t,'#ffe060',3.8);
     } else {
-      const ea=age-FL,fa=Math.max(0,1-ea/21),er=6+ea*4;
-      ctx.fillStyle=`rgba(255,255,240,${.4*fa})`;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle=`rgba(140,205,255,${.6*fa})`;ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.stroke();
+      const ba=age-FLIGHT;
+      const fade=Math.max(0,1-ba/BURST);
+
+      // Pass 1: inner bloom (fast, bright)
+      const bloomR=Math.min(28,ba*5.5);
+      const bg=ctx.createRadialGradient(lx,ly,0,lx,ly,bloomR);
+      bg.addColorStop(0,`rgba(255,255,220,${fade*0.95})`);
+      bg.addColorStop(0.4,`rgba(255,245,150,${fade*0.6})`);
+      bg.addColorStop(1,'rgba(255,230,100,0)');
+      ctx.globalAlpha=1;ctx.fillStyle=bg;
+      ctx.beginPath();ctx.arc(lx,ly,bloomR,0,Math.PI*2);ctx.fill();
+
+      // Pass 2: outer ring dissipation (slower)
+      const outerR=ba*3.8;
+      ctx.strokeStyle=`rgba(255,250,180,${fade*0.7})`;ctx.lineWidth=2.8;
+      ctx.beginPath();ctx.arc(lx,ly,outerR,0,Math.PI*2);ctx.stroke();
+
+      // Secondary ring (slight delay)
+      if(ba>6){
+        const sr=(ba-6)*2.5;
+        ctx.strokeStyle=`rgba(200,225,255,${fade*0.42})`;ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.arc(lx,ly,sr,0,Math.PI*2);ctx.stroke();
+      }
+
+      // Label
+      if(ba<32&&fade>0.3){
+        ctx.globalAlpha=fade*0.8;ctx.fillStyle='#fff0a0';
+        ctx.font='bold 8px "Inter",sans-serif';ctx.textAlign='center';
+        ctx.fillText('FLASH',lx,ly-bloomR-7);
+      }
     }
     ctx.restore();
   });
@@ -1458,30 +1572,64 @@ function drawFlashes(rc){
 
 function drawHEs(rc){
   rc.hes.forEach(h=>{
-    const age=currentTick-h.tick;if(age<0||age>50) return;
-    const traj=getTraj(h,null,null,rc.map),last=traj[traj.length-1],FL=13;
+    const age=currentTick-h.tick;if(age<0||age>90) return;
+    const[tx,ty]=g2p(h.throw_x,h.throw_y,rc.map);
+    const[lx,ly]=_estimateLand(h.throw_x,h.throw_y,rc,h.tick,200);
+    const FLIGHT=18,BLAST=72;
     ctx.save();
-    if(age<=FL){
-      const t=age/FL,idx=Math.min(Math.floor(t*(traj.length-1)),traj.length-2);
-      const fr=t*(traj.length-1)-idx;
-      const cx=traj[idx].cx+(traj[idx+1].cx-traj[idx].cx)*fr;
-      const cy=traj[idx].cy+(traj[idx+1].cy-traj[idx].cy)*fr;
-      // Draw dotted trajectory arc during flight (canvas-space)
-      const[ttx,tty]=g2p(h.throw_x,h.throw_y,rc.map);
-      const mx2=(ttx+last.cx)/2,my2=(tty+last.cy)/2-22;
-      ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#ff9940';ctx.lineWidth=1;ctx.setLineDash([3,4]);
-      ctx.beginPath();ctx.moveTo(ttx,tty);ctx.quadraticCurveTo(mx2,my2,last.cx,last.cy);ctx.stroke();
-      ctx.setLineDash([]);ctx.restore();
-      if(IMG.he_grenade.complete&&IMG.he_grenade.naturalWidth>0){ctx.globalAlpha=.7;ctx.drawImage(IMG.he_grenade,cx-8,cy-8,16,16);}
-      else{ctx.fillStyle='#7dff80';ctx.beginPath();ctx.arc(cx,cy,3.5,0,Math.PI*2);ctx.fill();}
+
+    if(age<=FLIGHT){
+      const t=age/FLIGHT;
+      _drawArcGuide(tx,ty,lx,ly,'#ff8020',0.42);
+      _drawProjectile(tx,ty,lx,ly,t,'#ff9900',3.8);
     } else {
-      const ea=age-FL,fa=Math.max(0,1-ea/37),er=6+ea*3;
-      ctx.fillStyle=`rgba(255,110,10,${.33*fa})`;ctx.beginPath();ctx.arc(last.cx,last.cy,er,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle=`rgba(255,180,30,${.52*fa})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(last.cx,last.cy,er+4,0,Math.PI*2);ctx.stroke();
-      for(let i=0;i<6;i++){
-        const ang=i*Math.PI/3+ea*.07,dr=8+ea*2;
-        ctx.fillStyle=`rgba(255,200,40,${.33*fa})`;
-        ctx.beginPath();ctx.arc(last.cx+Math.cos(ang)*dr,last.cy+Math.sin(ang)*dr,1.4,0,Math.PI*2);ctx.fill();
+      const ea=age-FLIGHT;
+      const fade=Math.max(0,1-ea/BLAST);
+      const er=ea*4.2;
+
+      // Primary shockwave ring
+      ctx.strokeStyle=`rgba(255,180,30,${fade*0.92})`;ctx.lineWidth=3.2;
+      ctx.beginPath();ctx.arc(lx,ly,er,0,Math.PI*2);ctx.stroke();
+
+      // Fire core gradient
+      const fireR=Math.min(30,er*0.42);
+      const cg=ctx.createRadialGradient(lx,ly,0,lx,ly,fireR);
+      cg.addColorStop(0,`rgba(255,255,200,${fade*0.95})`);
+      cg.addColorStop(0.35,`rgba(255,140,10,${fade*0.85})`);
+      cg.addColorStop(1,'rgba(200,50,0,0)');
+      ctx.fillStyle=cg;ctx.globalAlpha=1;
+      ctx.beginPath();ctx.arc(lx,ly,fireR,0,Math.PI*2);ctx.fill();
+
+      // 8-direction debris particles with trailing line
+      for(let i=0;i<8;i++){
+        const ang=i*Math.PI/4+ea*0.09;
+        const pr=ea*2.4+Math.sin(ea*0.28+i*0.7)*5;
+        const px2=lx+Math.cos(ang)*pr,py2=ly+Math.sin(ang)*pr;
+        const ps=Math.max(1,3.5*(1-ea/BLAST));
+        // Trailing line
+        const prevPr=Math.max(0,pr-6);
+        const ppx=lx+Math.cos(ang)*prevPr,ppy=ly+Math.sin(ang)*prevPr;
+        ctx.globalAlpha=fade*0.55;
+        ctx.strokeStyle=i%2===0?'#ff9900':'#ffcc44';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(ppx,ppy);ctx.lineTo(px2,py2);ctx.stroke();
+        // Particle dot
+        ctx.globalAlpha=fade*0.75;
+        ctx.fillStyle=i%2===0?'#ff9900':'#ffdd60';
+        ctx.beginPath();ctx.arc(px2,py2,ps,0,Math.PI*2);ctx.fill();
+      }
+
+      // Secondary ring (delayed)
+      if(ea>7){
+        const sr=(ea-7)*2.9;
+        ctx.strokeStyle=`rgba(255,80,0,${fade*0.52})`;ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(lx,ly,sr,0,Math.PI*2);ctx.stroke();
+      }
+
+      // Label
+      if(ea<24&&fade>0.35){
+        ctx.globalAlpha=fade*0.85;ctx.fillStyle='#ffcc44';
+        ctx.font='bold 8px "Inter",sans-serif';ctx.textAlign='center';
+        ctx.fillText('HE',lx,ly-er-7);
       }
     }
     ctx.restore();
@@ -1499,8 +1647,13 @@ function buildPlayerRounds(player,color){
       if(!r.positions||r.positions.length<2) return;
       const minTick=r.positions[0].tick;
       const nd=e=>({...e,tick:e.tick-minTick});
+      // Derive side per round: first 15 rounds = match side, rounds 16-30 = opposite, OT alternates every 3
+      const _rn=r.round_num;
+      let _rt=m.team;
+      if(_rn<=30){_rt=Math.floor((_rn-1)/15)%2===0?m.team:(m.team==='CT'?'T':'CT');}
+      else{const _ot=_rn-31;_rt=Math.floor(_ot/3)%2===0?m.team:(m.team==='CT'?'T':'CT');}
       rounds.push({
-        matchIdx:m,roundIdx:r.round_num,team:m.team,
+        matchIdx:m,roundIdx:r.round_num,team:_rt,
         map:m.map||'de_dust2',color,playerName:player.name,
         positions:r.positions.map(p=>({tick:p.tick-minTick,x:p.x,y:p.y})),
         smokes:r.smokes.map(nd),flashes:r.flashes.map(nd),
@@ -1974,6 +2127,15 @@ function initData(d){
   setInfo(`Loaded ${d.players.length} players · click to compare`,true);
 }
 
+// Team filter pill click handlers
+document.getElementById('teamFilter').querySelectorAll('.tf-pill').forEach(btn=>{
+  btn.onclick=()=>{
+    document.getElementById('teamFilter').querySelectorAll('.tf-pill').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    onFilter();
+  };
+});
+
 fetch('scout_data.json').then(r=>r.json()).then(initData)
   .catch(e=>setInfo('Failed to load scout_data.json — '+e.message,false));
 
@@ -1991,6 +2153,7 @@ RADAR.onload=()=>{redraw();};
     <div class="sp-row"><span class="sp-key">T</span><span class="sp-desc">Toggle trails</span></div>
     <div class="sp-row"><span class="sp-key">L</span><span class="sp-desc">Toggle player labels</span></div>
     <div class="sp-row"><span class="sp-key">N</span><span class="sp-desc">Toggle nades</span></div>
+    <div class="sp-row"><span class="sp-key">C</span><span class="sp-desc">Cycle side filter (All / CT / T)</span></div>
     <div class="sp-row"><span class="sp-key">H</span><span class="sp-desc">Toggle heatmap</span></div>
     <div class="sp-row"><span class="sp-key">Scroll</span><span class="sp-desc">Zoom in / out on map</span></div>
     <div class="sp-row"><span class="sp-key">Drag</span><span class="sp-desc">Pan when zoomed in</span></div>
